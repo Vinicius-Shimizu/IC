@@ -1,0 +1,15 @@
+pyproject.toml
+src/scallop_gemini/__init__.py
+src/scallop_gemini/fa_encoder.py
+src/scallop_gemini/fa_extract_info.py
+src/scallop_gemini/fa_gemini.py
+src/scallop_gemini/ff_gemini.py
+src/scallop_gemini/fp_gemini.py
+src/scallop_gemini/plugin.py
+src/scallop_gemini.egg-info/PKG-INFO
+src/scallop_gemini.egg-info/SOURCES.txt
+src/scallop_gemini.egg-info/dependency_links.txt
+src/scallop_gemini.egg-info/entry_points.txt
+src/scallop_gemini.egg-info/requires.txt
+src/scallop_gemini.egg-info/top_level.txt
+tests/test.py

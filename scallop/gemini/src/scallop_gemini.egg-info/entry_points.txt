@@ -1,0 +1,2 @@
+[scallop.plugin]
+gemini = scallop_gemini:ScallopGeminiPlugin

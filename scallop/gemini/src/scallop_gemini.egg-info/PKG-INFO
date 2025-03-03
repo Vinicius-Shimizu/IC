@@ -1,0 +1,5 @@
+Metadata-Version: 2.2
+Name: scallop-gemini
+Version: 0.0.2
+Requires-Dist: genai
+Requires-Dist: torch
