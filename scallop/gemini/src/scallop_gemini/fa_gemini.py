@@ -26,7 +26,7 @@ def get_gemini(plugin: ScallopGeminiPlugin):
   ):
     # Needs to be a relation declaration, and can have only one relation
     assert item.is_relation_decl(), f"{ERR_HEAD} has to be an attribute of a relation type declaration"
-    assert len(item.relation_decls()) == 1, f"{ERR_HEAD} cannot be an attribute on multiple relations]"
+    # assert len(item.relation_decls()) == 1, f"{ERR_HEAD} cannot be an attribute on multiple relations]"
 
     # Get the argument names, argument types, and adornment pattern
     relation_decl = item.relation_decl(0)
@@ -54,7 +54,7 @@ def get_gemini(plugin: ScallopGeminiPlugin):
     )
     def invoke_gemini(*args):
       assert len(args) == num_bounded
-
+      
       if model is None:
         local_model = plugin.model()
       else:

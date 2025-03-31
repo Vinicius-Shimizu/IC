@@ -13,10 +13,11 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 FA_NAME = "gemini_extract_info"
 ERR_HEAD = f"[@{FA_NAME}]"
 
+
 def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
   _RESPONSE_STORAGE = {}
-  SYS_PROMPT = "You are a helpful assistant and diligent programmer. Please answer everything in the JSON format. "
-  COT_PROMPT = "Please give your reasoning step by step before giving the JSON output."
+  SYS_PROMPT = "You are a helpful assistant and diligent programmer. Please answer everything in JSON format only with the keys"
+  COT_PROMPT = "Please give your reasoning step by step before giving the output."
 
   @scallopy.foreign_attribute
   def gemini_extract_info(
@@ -25,7 +26,7 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
     header: str = "",
     prompts: List[str],
     examples: List[Tuple[List[str], List[List[Tuple[str, ...]]]]] = [],
-    model: str = None,
+    model: str = "gemini-2.0-flash",
     cot: List[bool] = None,
     error_retry_limit: int = 1,
     error_retry_message: str = "Sorry, the answer is invalid. We expect you to generate a JSON list.",
@@ -34,11 +35,12 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
     # Check if the annotation is on relation type decl
     assert item.is_relation_decl(), f"{ERR_HEAD} has to be an attribute of a relation type declaration"
     relation_decl_infos = [get_rel_decl_info(r) for r in item.relation_decls()]
-
-    # Make sure that all the relation type declarations have the same bounded arguments (name and type)
+    
+    # # Make sure that all the relation type declarations have the same bounded arguments (name and type)
     (_, fst_arg_names, fst_arg_types, _, fst_num_bounded) = relation_decl_infos[0]
     input_arg_names = fst_arg_names[:fst_num_bounded]
     input_arg_types = fst_arg_types[:fst_num_bounded]
+
     for (i, at) in enumerate(input_arg_types):
       assert at.is_string(), f"{ERR_HEAD} The `{i+1}`th input variable has to be string, found `{at}`"
     for (_, curr_arg_names, curr_arg_types, _, curr_num_bounded) in relation_decl_infos[1:]:
@@ -48,10 +50,10 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
         assert an == input_arg_names[j], f"{ERR_HEAD} The `{j+1}`th input variables need to have the same name, found `{an}`"
         assert at.is_string(), f"{ERR_HEAD} The `{j+1}`th input variable has to be a string, found `{at}`"
 
-    # Make sure that every relation declaration gets a prompt
+    # # Make sure that every relation declaration gets a prompt
     assert len(prompts) == len(relation_decl_infos), f"{ERR_HEAD} The number of prompts must match the number of relations"
-
-    # Make sure examples are formatted correctly
+    
+    # # Make sure examples are formatted correctly
     for (bound, output) in examples:
       assert len(bound) == fst_num_bounded, f"{ERR_HEAD} The number of input variables in each example must match the number of input variables in the relations"
       assert len(output) == len(relation_decl_infos), f"{ERR_HEAD} The number of output relations in each example must match the number of declared relations"
@@ -59,14 +61,15 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
         for fact in output[i]:
           assert len(fact) == len(relation_decl_infos[i][1]) - fst_num_bounded, f"{ERR_HEAD} The arity of the fact tuples in each example must match the arity of their corresponding declared relation"
 
-    # Make sure that every relation declaration gets a cot
+    # # Make sure that every relation declaration gets a cot
     assert cot is None or len(cot) == len(relation_decl_infos), f"{ERR_HEAD} The length of `cot` must match the number of relations"
 
-    # Get the gpt invoker
+    # # Get the gemini invoker
     gemini_invoker = generate_gemini_invoker(relation_decl_infos, input_arg_names, header, prompts, examples, model, cot, debug)
 
-    # Get the foreign predicates
+    # # Get the foreign predicates
     fps = [generate_foreign_predicate(gemini_invoker, relation_decl_infos[i]) for i in range(len(relation_decl_infos))]
+    
     return fps
 
   def generate_foreign_predicate(
@@ -75,8 +78,8 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
   ):
     # Get the relation name and argument types
     (name, arg_names, arg_types, _, num_bounded) = relation_type
-
-    # Get the foreign predicate for invoking gpt
+    
+    # Get the foreign predicate for invoking gemini
     @scallopy.foreign_predicate(
       name,
       input_arg_types=arg_types[:num_bounded],
@@ -111,7 +114,7 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
   ):
     def format_input(args):
       return ''.join([f"{arg_name}: {arg_value}\n" for (arg_name, arg_value) in zip(input_arg_names, args)])
-
+    
     def invoke_gemini(*args):
       # Get the model to use
       if model is None: local_model = plugin.model()
@@ -137,22 +140,21 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
       if debug: print(f"Processing question: {memoization_key}")
 
       # Current messages
-      current_messages = [
-        {"role": "system", "content": f"{SYS_PROMPT} {header}"},
-      ]
+      current_messages = SYS_PROMPT + header + "\n"
 
       # Add examples
       for (bound, output) in examples:
         for (idx, ((_, arg_names, _, _, _), prompt, output_arg_values)) in enumerate(zip(relation_type_infos, prompts, output)):
           call_header = format_input(bound) if idx == 0 else ""
-          current_messages.append({"role": "user", "content": f"{call_header}{prompt}"})
-          relation = []
+          # current_messages.append(f"{call_header}{prompt}")
+          current_messages += call_header + prompt + " "
+
           for arg_values in output_arg_values:
-            output_json = {}
+            output = ""
             for (arg_name, arg_value) in zip(arg_names[len(args):], arg_values):
-              output_json[arg_name] = arg_value
-            relation.append(output_json)
-          current_messages.append({"role": "assistant", "content": json.dumps(relation)})
+              output += arg_name + ": " + arg_value + " "
+          current_messages += output + "\n"
+        current_messages += "\n"
 
       # Make the subsequent calls to Gemini
       for (idx, (relation_type_info, prompt)) in enumerate(zip(relation_type_infos, prompts)):
@@ -160,42 +162,51 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
         call_header = format_input(args) if idx == 0 else ""
         cot_response_content = ""
         if cot_arr[idx]:
-          cot_message = {"role": "user", "content": f"{call_header}{prompt} {COT_PROMPT}"}
+          cot_message = call_header + prompt + COT_PROMPT
           cot_response = client.models.generate_content(
             model=local_model,
-            contents=current_messages + [cot_message])
-          # cot_response = openai.ChatCompletion.create(
-          #   model=local_model,
-          #   messages=current_messages + [cot_message],
-          #   temperature=plugin.temperature())
-          cot_response_content = cot_response["choices"][0]["message"]["content"]
-        current_message = {"role": "user", "content": f"{call_header}{cot_response_content} {prompt}"}
+            contents=current_messages + cot_message)
+
+          cot_response_content = cot_response.candidates[0].content.parts[0].text
+        current_message = call_header + cot_response_content + prompt
+        
         if debug: print(f"> Sending request: {current_message}")
-        current_messages.append(current_message)
-        # curr_response = openai.ChatCompletion.create(
-        #   model=local_model,
-        #   messages=current_messages,
-        #   temperature=plugin.temperature(),
-        #   response_format={"type": "json_object"})
+        current_messages += current_message
+        
         curr_response = client.models.generate_content(
           model=local_model,
           contents=current_messages
           )
-        
-        curr_response_message = curr_response["choices"][0]["message"]
+        curr_response_message = curr_response.candidates[0].content.parts[0].text
         if debug: print(f"> Obtained response: {curr_response_message}")
-        current_messages.append(curr_response_message)
-        curr_response_json = parse_response_json(curr_response_message, arg_names[num_bounded:])
-        result[name] = curr_response_json
+        current_messages += curr_response_message
+        
+        json_strings = [block.strip() for block in curr_response_message.strip().split('```') if block.strip()]
+        response_dict = {}
+        for json_str in json_strings: 
+          try: # Remove "json" if it exists at the start of the string 
+              if json_str.startswith("json"): json_str = json_str[4:].strip() # Remove the 'json' and any leading spaces
+              # Parse the cleaned JSON string
+              parsed_json = json.loads(json_str)
 
+              # Update the dictionary with keys and their corresponding values
+              response_dict.update(parsed_json)
+          except json.JSONDecodeError:
+              pass
+        pred_args = arg_names[num_bounded:]
+        response_json = {}
+        for key in pred_args:
+          response_json[key] = response_dict[key]
+        
+        result[name] = [response_json]
+        # print(result[name])
       # Do the memoization and return
       _RESPONSE_STORAGE[memoization_key] = result
       return result
 
     return invoke_gemini
 
-
-
+  
   def get_rel_decl_info(rel_decl):
     arg_names = [ab.name.name for ab in rel_decl.arg_bindings]
     arg_types = [ab.ty for ab in rel_decl.arg_bindings]
@@ -214,26 +225,5 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
   def get_boundness(adornment) -> str:
     return "b" if adornment and adornment.is_bound() else "f"
 
-
-  def parse_response_json(response, expected_keys):
-    role = response["role"]
-    if role == "assistant":
-      response_json = json.loads(response["content"])
-      if type(response_json) == list:
-        return response_json
-      elif type(response_json) == dict:
-        if len(response_json) == 1:
-          key = list(response_json.keys())[0]
-          if len(expected_keys) == 1 and key == expected_keys[0]:
-            return [response_json]
-          elif type(response_json[key]) == list:
-            return response_json[key]
-          elif type(response_json[key]) == dict:
-            return [response_json[key]]
-        return [response_json]
-      else:
-        raise Exception(f"{ERR_HEAD} Unexpected output json type {type(response_json)}")
-    else:
-      raise Exception(f"{ERR_HEAD} Unknown Gemini response role: {role}")
 
   return gemini_extract_info
