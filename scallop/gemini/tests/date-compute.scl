@@ -5,11 +5,11 @@ type question(question: String)
 
 // Query foundation model
 @gemini_extract_info(
-  header="Please extract dates and their relationships from the provided question.",
+  header="Please extract dates and their relationships from the provided question. ",
   prompts=[
     "What are the mentioned MM/DD/YYYY dates in JSON format?",
     "What is the goal in JSON format?",
-    "What are the relationships of the dates in JSON format?"
+    "What are all the relationships in JSON format? Give multiple answers if there are multiple relationships."
   ],
   examples=[
     (
@@ -53,7 +53,6 @@ type question(question: String)
       ]
     )
   ],
-  cot=[false,false,true],
 )
 type extract_mentioned_date(bound question: String, label: String, date: DateTime),
      extract_goal          (bound question: String, goal: String),
@@ -71,11 +70,11 @@ rel derived_date(label, date)        = mentioned_date(label, date)
 rel derived_date(label, date - diff) = relationship(label, other, diff) and derived_date(other, date)
 rel derived_date(label, date + diff) = relationship(other, label, diff) and derived_date(other, date)
 
-query mentioned_date
+// query mentioned_date
 query relationship
-query goal
-query derived_date
-// // Get the answer corresponding to the goal
+// query goal
+// query derived_date
+// // // Get the answer corresponding to the goal
 rel answer(date) = goal(label) and derived_date(label, date)
 
 query answer

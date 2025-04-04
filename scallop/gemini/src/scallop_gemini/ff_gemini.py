@@ -24,8 +24,8 @@ def get_gemini(plugin: ScallopGeminiPlugin):
       #   messages=[{"role": "user", "content": prompt}],
       #   temperature=plugin.temperature(),
       # )
-      print("Inside ff")
-      print("prompt :", prompt)
+      # print("Inside ff")
+      # print("prompt :", prompt)
       
       response = client.models.generate_content(
         model="gemini-2.0-flash",
@@ -33,7 +33,7 @@ def get_gemini(plugin: ScallopGeminiPlugin):
       )
 
       result = response.candidates[0].content.parts[0].text
-      print("result :", result, "\n\n\n")
+      # print("result :", result, "\n\n\n")
       # Store in the storage
       STORAGE[prompt] = result
       return result

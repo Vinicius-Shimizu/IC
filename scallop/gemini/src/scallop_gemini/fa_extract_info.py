@@ -16,7 +16,7 @@ ERR_HEAD = f"[@{FA_NAME}]"
 
 def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
   _RESPONSE_STORAGE = {}
-  SYS_PROMPT = "You are a helpful assistant and diligent programmer. Please answer everything in JSON format only with the keys"
+  SYS_PROMPT = "You are a helpful assistant and diligent programmer. Please answer everything in JSON format."
   COT_PROMPT = "Please give your reasoning step by step before giving the output."
 
   @scallopy.foreign_attribute
@@ -69,7 +69,7 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
 
     # # Get the foreign predicates
     fps = [generate_foreign_predicate(gemini_invoker, relation_decl_infos[i]) for i in range(len(relation_decl_infos))]
-    
+    print(fps)
     return fps
 
   def generate_foreign_predicate(
@@ -178,7 +178,7 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
           contents=current_messages
           )
         curr_response_message = curr_response.candidates[0].content.parts[0].text
-        if debug: print(f"> Obtained response: {curr_response_message}")
+        if debug: print(f"> Obtained response: {curr_response_message}\n")
         current_messages += curr_response_message
         
         json_strings = [block.strip() for block in curr_response_message.strip().split('```') if block.strip()]
@@ -191,15 +191,21 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
 
               # Update the dictionary with keys and their corresponding values
               response_dict.update(parsed_json)
+              
           except json.JSONDecodeError:
               pass
         pred_args = arg_names[num_bounded:]
-        response_json = {}
-        for key in pred_args:
-          response_json[key] = response_dict[key]
-        
-        result[name] = [response_json]
+        print(response_dict)
+        print(pred_args)
+
+        filtered_json = extract_key_groups(response_dict, pred_args)
+        print(filtered_json, "\n")
+        # response_json = {}
+        # for key in pred_args: # The filter has to go through the entire dict to look for what we need
+        #   response_json[key] = response_dict[key] # currently the dict does now allow multiple values for the key
+        result[name] = filtered_json
         # print(result[name])
+        
       # Do the memoization and return
       _RESPONSE_STORAGE[memoization_key] = result
       return result
@@ -221,6 +227,25 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
 
     return (rel_decl.name.name, arg_names, arg_types, pattern, num_bounded)
 
+
+  def extract_key_groups(data, target_keys):
+    extracted_list = []
+
+    def search(data):
+        if isinstance(data, dict):
+            # If all target keys exist in the dict, collect them
+            if all(key in data for key in target_keys):
+                extracted_list.append({key: data[key] for key in target_keys})
+            else:
+                # Continue searching in nested structures
+                for value in data.values():
+                    search(value)
+        elif isinstance(data, list):
+            for item in data:
+                search(item)
+
+    search(data)
+    return extracted_list
 
   def get_boundness(adornment) -> str:
     return "b" if adornment and adornment.is_bound() else "f"

@@ -29,9 +29,10 @@ class ScallopGeminiPlugin(scallopy.Plugin):
     self._warning_printed = False
 
   def setup_argparse(self, parser: ArgumentParser):
-    parser.add_argument("--num-allowed-openai-request", type=int, default=100, help="Limit on the number of openai calls")
-    parser.add_argument("--openai-gpt-model", type=str, default=self._default_model, help="The GPT model we use")
-    parser.add_argument("--openai-gpt-temperature", type=float, default=0, help="The temperature for the GPT model")
+    # parser.add_argument("--num-allowed-openai-request", type=int, default=100, help="Limit on the number of openai calls")
+    # parser.add_argument("--openai-gpt-model", type=str, default=self._default_model, help="The GPT model we use")
+    # parser.add_argument("--openai-gpt-temperature", type=float, default=0, help="The temperature for the GPT model")
+    pass
 
   def configure(self, args: Dict = {}, unknown_args: List = []):
     from google import genai
@@ -49,8 +50,8 @@ class ScallopGeminiPlugin(scallopy.Plugin):
     genai.api_key = api_key
 
     # Set request limit
-    if "num_allowed_openai_request" in args:
-      self._num_allowed_requests = args["num_allowed_genai_request"]
+    # if "num_allowed_openai_request" in args:
+    #   self._num_allowed_requests = args["num_allowed_genai_request"]
     self._num_performed_requests = 0
 
     # Set model

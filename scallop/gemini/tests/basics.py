@@ -24,10 +24,23 @@ class TestBasics(unittest.TestCase):
 
       query answer
     """)
+    # ctx.add_program(""" 
+    #     rel question = {
+    #       (1, "Jane finished her PhD in January 5th, 2008. 2 days from today is the 10th anniversary of her PhD. What is the date 10 days ago from today?"),
+    #     }
+        
+    #     rel answer(id, $gemini(x)) = question(id, x)
+                    
+    #     query answer
+
+    # """)
+    
     ctx.run()
 
     result = list(ctx.relation("answer"))
-    print("Result: ", result)
+    print("Results:\n ")
+    for i in range(len(result)):
+      print(result[i])
     self.assertEqual(len(result), 2)
     self.assertEqual(result[0][0], 1)
     self.assertEqual(result[1][0], 2)
