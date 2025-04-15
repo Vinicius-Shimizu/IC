@@ -4,6 +4,7 @@ import json
 from pydantic import ConfigDict
 # import openai
 from google import genai
+from google.genai import types
 import scallopy
 import os
 
@@ -69,7 +70,6 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
 
     # # Get the foreign predicates
     fps = [generate_foreign_predicate(gemini_invoker, relation_decl_infos[i]) for i in range(len(relation_decl_infos))]
-    print(fps)
     return fps
 
   def generate_foreign_predicate(
@@ -119,6 +119,7 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
       # Get the model to use
       if model is None: local_model = plugin.model()
       else: local_model = model
+      
 
       # Turn cot on or off
       if cot is None: cot_arr = [False] * len(relation_type_infos)
@@ -129,7 +130,7 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
       if memoization_key in _RESPONSE_STORAGE:
         return _RESPONSE_STORAGE[memoization_key]
 
-      # Check whether we can call GPT
+      # Check whether we can call gemini
       plugin.assert_can_request()
       plugin.increment_num_performed_request()
 
@@ -146,7 +147,6 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
       for (bound, output) in examples:
         for (idx, ((_, arg_names, _, _, _), prompt, output_arg_values)) in enumerate(zip(relation_type_infos, prompts, output)):
           call_header = format_input(bound) if idx == 0 else ""
-          # current_messages.append(f"{call_header}{prompt}")
           current_messages += call_header + prompt + " "
 
           for arg_values in output_arg_values:
@@ -175,9 +175,15 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
         
         curr_response = client.models.generate_content(
           model=local_model,
-          contents=current_messages
-          )
+          contents=current_messages,
+          config=types.GenerateContentConfig(
+              temperature=0,
+              top_k = 1,
+              top_p = 0.5,
+          ),
+        )
         curr_response_message = curr_response.candidates[0].content.parts[0].text
+
         if debug: print(f"> Obtained response: {curr_response_message}\n")
         current_messages += curr_response_message
         
@@ -195,17 +201,11 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
           except json.JSONDecodeError:
               pass
         pred_args = arg_names[num_bounded:]
-        print(response_dict)
-        print(pred_args)
 
         filtered_json = extract_key_groups(response_dict, pred_args)
-        print(filtered_json, "\n")
-        # response_json = {}
-        # for key in pred_args: # The filter has to go through the entire dict to look for what we need
-        #   response_json[key] = response_dict[key] # currently the dict does now allow multiple values for the key
+
         result[name] = filtered_json
-        # print(result[name])
-        
+        print(filtered_json, "\n")
       # Do the memoization and return
       _RESPONSE_STORAGE[memoization_key] = result
       return result
@@ -230,12 +230,20 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
 
   def extract_key_groups(data, target_keys):
     extracted_list = []
-
+    print(data)
     def search(data):
         if isinstance(data, dict):
-            # If all target keys exist in the dict, collect them
+            # Check if all target keys are directly in this dict
             if all(key in data for key in target_keys):
-                extracted_list.append({key: data[key] for key in target_keys})
+                entry = {}
+                for key in target_keys:
+                    value = data[key]
+                    # Unwrap if the value is a dict with the target keys again
+                    if isinstance(value, dict) and all(k in value for k in target_keys):
+                        entry.update(value)
+                    else:
+                        entry[key] = value
+                extracted_list.append(entry)
             else:
                 # Continue searching in nested structures
                 for value in data.values():
@@ -252,3 +260,4 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
 
 
   return gemini_extract_info
+
