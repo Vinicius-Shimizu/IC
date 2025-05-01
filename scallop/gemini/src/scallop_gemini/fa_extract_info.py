@@ -2,7 +2,6 @@ from typing import *
 import re
 import json
 from pydantic import ConfigDict
-# import openai
 from google import genai
 from google.genai import types
 import scallopy
@@ -165,7 +164,14 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
           cot_message = call_header + prompt + COT_PROMPT
           cot_response = client.models.generate_content(
             model=local_model,
-            contents=current_messages + cot_message)
+            contents=current_messages + cot_message,
+            config=types.GenerateContentConfig(
+              temperature=0,
+              top_k = 1,
+              top_p = 0.5,
+            ),
+          )
+
 
           cot_response_content = cot_response.candidates[0].content.parts[0].text
         current_message = call_header + cot_response_content + prompt
@@ -260,4 +266,3 @@ def get_gemini_extract_info(plugin: ScallopGeminiPlugin):
 
 
   return gemini_extract_info
-

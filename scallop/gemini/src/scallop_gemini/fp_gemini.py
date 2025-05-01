@@ -1,4 +1,5 @@
 from google import genai
+from google.genai import types
 import scallopy
 import os
 
@@ -6,7 +7,7 @@ from . import ScallopGeminiPlugin
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 def get_gemini(plugin: ScallopGeminiPlugin):
-  # A storage for @gpt foreign predicate
+  # A storage for @gemini foreign predicate
   STORAGE = {}
 
   @scallopy.foreign_predicate
@@ -20,20 +21,21 @@ def get_gemini(plugin: ScallopGeminiPlugin):
 
       # Memoize the response
       plugin.increment_num_performed_request()
-      # response = openai.ChatCompletion.create(
-      #   model=plugin.model(),
-      #   messages=[{"role": "user", "content": s}],
-      #   temperature=plugin.temperature(),
-      # )
+
       response = client.models.generate_content(
         model=plugin.model(),
-        contents=[{"role": "user", "content": s}],
+        contents=s,
+        config=types.GenerateContentConfig(
+          temperature=0,
+          top_k = 1,
+          top_p = 0.5,
+        ),
       )
       STORAGE[s] = response
 
     # Iterate through all the choices
-    for choice in response["choices"]:
-      result = choice["message"]["content"].strip()
+    for candidate in response.candidates:
+      result = candidate.content.parts[0].text.strip()
       yield (result,)
 
   return gemini

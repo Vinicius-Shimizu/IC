@@ -1,6 +1,6 @@
 from typing import *
 
-from google import genai
+import google.generativeai as genai
 import torch
 import os
 
@@ -9,14 +9,18 @@ from scallop_gpu import get_device
 
 from . import ScallopGeminiPlugin
 
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+# Configure the Gemini client
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+embedding_model = genai.get_model("models/embedding-001")  # Load once
+
+
 FA_NAME = "gemini_encoder"
 ERR_HEAD = f"[@{FA_NAME}]"
 
 def get_gemini_encoder(plugin: ScallopGeminiPlugin):
 
   @scallopy.foreign_attribute
-  def gemini_encoder(item, *, debug: bool = False, model: str = "gemini-2.0-flash"):
+  def gemini_encoder(item, *, debug: bool = False, model: str = "models/embedding-001"):
     # Check if the annotation is on function type decl
     assert item.is_function_decl(), f"{ERR_HEAD} has to be an attribute of a function type declaration"
 
@@ -31,30 +35,28 @@ def get_gemini_encoder(plugin: ScallopGeminiPlugin):
     @scallopy.foreign_function(name=item.function_decl_name())
     def encode_text(text: str) -> scallopy.Tensor:
       # Check memoization
-      if text in STORAGE:
-        pass
-      else:
+      if text not in STORAGE:
         # Make sure that we can do request
         plugin.assert_can_request()
 
         if debug:
           print(f"{ERR_HEAD} Querying `{model}` for text `{text}`")
 
-        # Memoize the response
-        # print("inside encoder")
-        # print("text :", text)
-        response = client.models.generate_content(model=model, contents=text)
-        # response = openai.Embedding.create(input=[text], model=model)
-        embedding = response['data'][0]['embedding']
+        # Request the embedding
+        response = embedding_model.embed_content(
+          content=text,
+          task_type="retrieval_document",  # or "retrieval_query"
+        )
+
+        embedding = response["embedding"]
 
         if debug:
-          print(f"{ERR_HEAD} Obtaining response: {response}")
+          print(f"{ERR_HEAD} Obtaining embedding: {embedding}")
 
         STORAGE[text] = embedding
-
         plugin.increment_num_performed_request()
 
-      # Return
+      # Return tensor
       device = get_device()
       result_embedding = STORAGE[text]
       result = torch.tensor(result_embedding).to(device=device)

@@ -1,4 +1,6 @@
 from google import genai
+from google.genai import types
+
 import scallopy
 import os
 
@@ -19,18 +21,16 @@ def get_gemini(plugin: ScallopGeminiPlugin):
 
       # Add performed requests
       plugin.increment_num_performed_request()
-      # response = openai.ChatCompletion.create(
-      #   model=plugin.model(),
-      #   messages=[{"role": "user", "content": prompt}],
-      #   temperature=plugin.temperature(),
-      # )
-      # print("Inside ff")
-      # print("prompt :", prompt)
-      
+
       response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt,
-      )
+          model="gemini-2.0-flash",
+          contents=prompt,
+          config=types.GenerateContentConfig(
+              temperature=0,
+              top_k = 1,
+              top_p = 0.5,
+          ),
+        )
 
       result = response.candidates[0].content.parts[0].text
       # print("result :", result, "\n\n\n")

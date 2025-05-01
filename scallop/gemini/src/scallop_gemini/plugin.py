@@ -9,7 +9,7 @@ class ScallopGeminiPlugin(scallopy.Plugin):
   def __init__(self):
     super().__init__()
 
-    # Whether the openai plugin has been configured
+    # Whether the gemini plugin has been configured
     self._configured = False
 
     # Number of allowed requests
@@ -18,10 +18,10 @@ class ScallopGeminiPlugin(scallopy.Plugin):
     # Number of already performed requests
     self._num_performed_requests = 0
 
-    # Temprature of GPT model
+    # Temperature of gemini model
     self._temperature = 0.0
 
-    # The GPT model to use
+    # The Gemini model to use
     self._default_model = "gemini-2.0.flash"
     self._model = self._default_model
 
@@ -29,15 +29,15 @@ class ScallopGeminiPlugin(scallopy.Plugin):
     self._warning_printed = False
 
   def setup_argparse(self, parser: ArgumentParser):
-    # parser.add_argument("--num-allowed-openai-request", type=int, default=100, help="Limit on the number of openai calls")
-    # parser.add_argument("--openai-gpt-model", type=str, default=self._default_model, help="The GPT model we use")
-    # parser.add_argument("--openai-gpt-temperature", type=float, default=0, help="The temperature for the GPT model")
-    pass
+    parser.add_argument("--num-allowed-gemini-request", type=int, default=100, help="Limit on the number of gemini calls")
+    parser.add_argument("--gemini-model", type=str, default=self._default_model, help="The gemini model we use")
+    parser.add_argument("--gemini-temperature", type=float, default=0, help="The temperature for the gemini model")
+    
 
   def configure(self, args: Dict = {}, unknown_args: List = []):
     from google import genai
 
-    # Open API
+    # Gemini API
     api_key = os.getenv("GEMINI_API_KEY")
     if api_key is None:
       print("[scallop_gemini] `GEMINI_API_KEY` not found, consider setting it in the environment variable", file=sys.stderr)
@@ -50,17 +50,17 @@ class ScallopGeminiPlugin(scallopy.Plugin):
     genai.api_key = api_key
 
     # Set request limit
-    # if "num_allowed_openai_request" in args:
-    #   self._num_allowed_requests = args["num_allowed_genai_request"]
+    if "num_allowed_gemini_request" in args:
+      self._num_allowed_requests = args["num_allowed_gemini_request"]
     self._num_performed_requests = 0
 
     # Set model
     if "genai_model" in args:
-      self._model = args["genai_gpt_model"]
+      self._model = args["gemini_model"]
 
     # Set temperature
     if "genai_temperature" in args:
-      self._temperature = args["genai_gpt_temperature"]
+      self._temperature = args["gemini_temperature"]
 
   def model(self) -> str:
     return self._model
@@ -70,12 +70,12 @@ class ScallopGeminiPlugin(scallopy.Plugin):
 
   def raise_unconfigured(self):
     if not self._warning_printed:
-      print("Gemini AI Plugin not configured; consider setting `GENAI_API_KEY`", file=sys.stderr)
+      print("Gemini Plugin not configured; consider setting `GEMINI_API_KEY`", file=sys.stderr)
       self._warning_printed = True
-    raise Exception("Gemini AI Plugin not configured")
+    raise Exception("Gemini Plugin not configured")
 
   def assert_can_request(self):
-    # Check if openai API is configured
+    # Check if Gemini API is configured
     if not self._configured:
       self.raise_unconfigured()
 
@@ -92,12 +92,10 @@ class ScallopGeminiPlugin(scallopy.Plugin):
   def load_into_ctx(self, ctx: scallopy.ScallopContext):
     from . import fa_encoder
     from . import fa_extract_info
-    from . import fa_gemini
     from . import ff_gemini
     from . import fp_gemini
 
     ctx.register_foreign_attribute(fa_extract_info.get_gemini_extract_info(self))
-    ctx.register_foreign_attribute(fa_gemini.get_gemini(self))
     ctx.register_foreign_function(ff_gemini.get_gemini(self))
     ctx.register_foreign_predicate(fp_gemini.get_gemini(self))
 
