@@ -201,9 +201,9 @@ class MNISTSum2Net(nn.Module):
         (a_imgs, b_imgs) = x
 
         # Recognize the digits
-        self.dig1dists = self.mnist_net(a_imgs) #tensor 64x 10
+        self.dig1dists = self.mnist_net(a_imgs) #tensor 64x 10  = [probs1, probs2, probs3,..., probs64]
         self.dig2dists = self.mnist_net(b_imgs) #tensor 64x 10
-
+        
         # def run_model(p_digit1, p_digit2):
             # n = len(p_digit1)
             # digit1_0 = IdArray("digit1_0", n) 
