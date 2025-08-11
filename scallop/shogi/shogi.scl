@@ -1,6 +1,10 @@
 // enemies
 rel enemies = {
-    (7, 8)
+    (8, 8),
+    (0, 6), (6, 6), (7, 6), (8, 6),
+    (1, 5), (4 ,5),
+    (5, 4),
+    (1, 2), (3, 2), (4, 2)
 }
 
 type direction = UP | DOWN | LEFT | RIGHT
@@ -18,19 +22,19 @@ rel board = {
     (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0)
 }
 
-rel empty(x, y) = board(x, y) and not enemies(x, y) and not pawn(x, y) and not gold(x, y) and not silver(x, y) and not lance(x, y) and not rook(x, y) and not bishop(x, y) and not knight(x, y) and not king(x, y)
+rel empty(x, y) = board(x, y) and not enemies(x, y) and not pawn(x, y) and not gold(x, y) and not silver(x, y) and not lance(x, y) and not rook(x, y) and not bishop(x, y) and not knight(x, y)
 
 
 // Pawn
 rel pawn = {
-    (0, 2), (1, 2), (2, 3), (3, 2), (4, 2), (5, 2), (6, 2), (7, 2), (8, 2)
+    (6, 3), (0, 2), (5, 2), (8, 2)
 }
 rel pawn_moves(x, y + 1) = pawn(x, y) and y < 8 and empty(x, y + 1)
 
 // Gold general
 type gold(x: usize, y: usize)
 rel gold = {
-    (3, 0), (5, 0)
+    (7, 7), (5, 6), (2, 0)
 }
 rel gold_moves(x, y + 1) = gold(x, y) and y < 8 and empty(x, y + 1) 
 rel gold_moves(x - 1, y + 1) = gold(x, y) and y < 8 and x > 0 and empty(x - 1, y + 1) 
@@ -42,7 +46,7 @@ rel gold_moves(x, y - 1) = gold(x, y) and y > 0 and empty(x, y - 1)
 // Silver general
 type silver(x: usize, y:usize)
 rel silver = {
-    (2, 0), (6, 0)
+    (6, 8), (6, 1), (5, 0)
 }
 rel silver_moves(x, y + 1) = silver(x, y) and y < 8 and empty(x, y + 1)
 rel silver_moves(x - 1, y + 1) = silver(x, y) and y < 8 and x > 0 and empty(x - 1, y + 1)
@@ -61,7 +65,7 @@ rel lance_moves(x, y + 1) = lance_moves(x, y) and empty(x, y + 1)
 // Rook
 type rook(x: usize, y:usize)
 rel rook = {
-    (7, 0)
+    
 }
 type rook_line(x: usize, y : usize, dir: direction)
 rel rook_line(x, y + 1, UP) = rook(x, y) and y < 8 and empty(x, y + 1)
@@ -77,7 +81,7 @@ rel rook_moves(x, y) = rook_line(x, y, _)
 // Bishop
 type bishop(x: usize, y:usize)
 rel bishop = {
-    (1, 1)
+    
 }
 type bishop_diag(x: usize, y: usize, hor_dir: direction, vert_dir: direction)
 rel bishop_diag(x + 1, y + 1, UP, RIGHT) = bishop(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1)
@@ -89,26 +93,33 @@ rel bishop_diag(x - 1, y - 1, DOWN, LEFT) = bishop_diag(x, y, DOWN, LEFT) and x 
 rel bishop_diag(x - 1, y + 1, UP, LEFT) = bishop(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1)
 rel bishop_diag(x - 1, y + 1, UP, LEFT) = bishop_diag(x, y, UP, LEFT) and x > 0 and y < 8 and empty(x - 1, y + 1)
 rel bishop_moves(x, y) = bishop_diag(x, y, _, _)
-query bishop_moves
 
 // Knight
 type knight(x: usize, y:usize)
 rel knight = {
-    (1, 0), (7, 0)
+    (3, 3), (7, 0)
 }
 rel knight_moves(x - 1, y + 2) = knight(x, y) and x < 8 and y < 8 and empty(x - 1, y + 2)
 rel knight_moves(x + 1, y + 2) = knight(x, y) and x < 8 and y < 8 and empty(x + 1, y + 2)
 
-// King
-type king(x: usize, y:usize)
-rel king = {
-    (4, 0)
+// Enemy_king
+type enemy_king(x: usize, y:usize)
+rel enemy_king = {
+    (8, 7)
 }
-rel king_moves(x - 1, y + 1) = king(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1) // Up-left
-rel king_moves(x, y + 1) = king(x, y) and y < 8 and empty(x, y + 1) // Up
-rel king_moves(x + 1, y + 1) = king(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1) // Up-right
-rel king_moves(x - 1, y) = king(x, y) and x > 0 and empty(x - 1, y) // Left
-rel king_moves(x + 1, y) = king(x, y) and x < 8 and empty(x + 1, y) // Right
-rel king_moves(x - 1, y - 1) = king(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1) // Down-left
-rel king_moves(x, y - 1) = king(x, y) and y > 0 and empty(x, y - 1) // Down
-rel king_moves(x + 1, y - 1) = king(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1) //Down-right
+rel enemy_king_moves(x - 1, y + 1) = enemy_king(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1) and not check()// Up-left
+rel enemy_king_moves(x, y + 1) = enemy_king(x, y) and y < 8 and empty(x, y + 1) and not check() // Up
+rel enemy_king_moves(x + 1, y + 1) = enemy_king(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1) and not check() // Up-right
+rel enemy_king_moves(x - 1, y) = enemy_king(x, y) and x > 0 and empty(x - 1, y) and not check() // Left
+rel enemy_king_moves(x + 1, y) = enemy_king(x, y) and x < 8 and empty(x + 1, y) and not check() // Right
+rel enemy_king_moves(x - 1, y - 1) = enemy_king(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1) and not check() // Down-left
+rel enemy_king_moves(x, y - 1) = enemy_king(x, y) and y > 0 and empty(x, y - 1) and not check() // Down
+rel enemy_king_moves(x + 1, y - 1) = enemy_king(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1) and not check() //Down-right
+
+
+// Checkmate logic
+rel num_enemy_king_moves(n) = n := count(x, y: enemy_king_moves(x, y))
+rel check() = enemy_king(x, y) and gold_moves(x, y)
+
+rel checkmate() = check() and num_enemy_king_moves(n) and n == 0
+query checkmate
