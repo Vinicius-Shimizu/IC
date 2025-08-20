@@ -6,7 +6,12 @@ import matplotlib
 matplotlib.use("Agg")  # Use non-GUI backend for headless environments
 import cv2
 import numpy as np
-
+import tensorflow as tf
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
+import json
+import re
+from collections import defaultdict
 
 program = '''
         type direction = UP | DOWN | LEFT | RIGHT
@@ -24,8 +29,7 @@ program = '''
             (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0)
         }
 
-        rel empty(x, y) = board(x, y) and not enemies(x, y) and not pawn(x, y) and not gold(x, y) and not silver(x, y) and not lance(x, y) and not rook(x, y) and not bishop(x, y) and not knight(x, y) and not king(x, y)
-
+        rel empty(x, y) = board(x, y) and not enemies(x, y) and not pawn(x, y) and not gold(x, y) and not silver(x, y) and not lance(x, y) and not rook(x, y) and not promoted_rook(x, y) and not bishop(x, y) and not promoted_bishop(x, y) and not knight(x, y)
 
         // Pawn
         rel pawn_moves(x, y, x, y + 1) = pawn(x, y) and y < 8 and empty(x, y + 1)
@@ -65,6 +69,27 @@ program = '''
         rel rook_line(xsrc, ysrc, x - 1, y, LEFT) = rook_line(xsrc, ysrc, x, y, LEFT) and x > 0 and empty(x - 1, y)
         rel rook_moves(xsrc, ysrc, xdest, ydest) = rook_line(xsrc, ysrc, xdest, ydest, _)
 
+        // Promoted Rook
+        type promoted_rook_line(xsrc: i32, ysrc: i32, xdest: i32, ydest: i32, dir: direction)
+        // UP
+        rel promoted_rook_line(xsrc, ysrc, x, y + 1, UP) = promoted_rook(xsrc, ysrc) and x == xsrc and y == ysrc and y < 8 and empty(x, y + 1)
+        rel promoted_rook_line(xsrc, ysrc, x, y + 1, UP) = promoted_rook_line(xsrc, ysrc, x, y, UP) and y < 8 and empty(x, y + 1)
+        // DOWN
+        rel promoted_rook_line(xsrc, ysrc, x, y - 1, DOWN) = promoted_rook(xsrc, ysrc) and x == xsrc and y == ysrc and y > 0 and empty(x, y - 1)
+        rel promoted_rook_line(xsrc, ysrc, x, y - 1, DOWN) = promoted_rook_line(xsrc, ysrc, x, y, DOWN) and y > 0 and empty(x, y - 1)
+        // RIGHT
+        rel promoted_rook_line(xsrc, ysrc, x + 1, y, RIGHT) = promoted_rook(xsrc, ysrc) and x == xsrc and y == ysrc and x < 8 and empty(x + 1, y)
+        rel promoted_rook_line(xsrc, ysrc, x + 1, y, RIGHT) = promoted_rook_line(xsrc, ysrc, x, y, RIGHT) and x < 8 and empty(x + 1, y)
+        // LEFT
+        rel promoted_rook_line(xsrc, ysrc, x - 1, y, LEFT) = promoted_rook(xsrc, ysrc) and x == xsrc and y == ysrc and x > 0 and empty(x - 1, y)
+        rel promoted_rook_line(xsrc, ysrc, x - 1, y, LEFT) = promoted_rook_line(xsrc, ysrc, x, y, LEFT) and x > 0 and empty(x - 1, y)
+        rel promoted_rook_moves(xsrc, ysrc, xdest, ydest) = promoted_rook_line(xsrc, ysrc, xdest, ydest, _)
+
+        rel promoted_rook_moves(x, y, x + 1, y + 1) = promoted_rook(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1)
+        rel promoted_rook_moves(x, y, x - 1, y + 1) = promoted_rook(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1)
+        rel promoted_rook_moves(x, y, x + 1, y - 1) = promoted_rook(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1)
+        rel promoted_rook_moves(x, y, x - 1, y - 1) = promoted_rook(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1)
+
         // Bishop
         type bishop_diag(xsrc: i32, ysrc: i32, xdst: i32, ydst: i32, hor_dir: direction, vert_dir: direction)
         // UP-RIGHT
@@ -80,6 +105,29 @@ program = '''
         rel bishop_diag(xsrc, ysrc, x - 1, y + 1, LEFT, UP) = bishop(xsrc, ysrc) and x == xsrc and y == ysrc and x > 0 and y < 8 and empty(x - 1, y + 1)
         rel bishop_diag(xsrc, ysrc, x - 1, y + 1, LEFT, UP) = bishop_diag(xsrc, ysrc, x, y, LEFT, UP) and x > 0 and y < 8 and empty(x - 1, y + 1)
         rel bishop_moves(xsrc, ysrc, xdst, ydst) = bishop_diag(xsrc, ysrc, xdst, ydst, _, _)
+        
+        // Promoted Bishop
+        // UP-RIGHT
+        rel promoted_bishop_diag(xsrc, ysrc, x + 1, y + 1, RIGHT, UP) = promoted_bishop(xsrc, ysrc) and x == xsrc and y == ysrc and x < 8 and y < 8 and empty(x + 1, y + 1)
+        rel promoted_bishop_diag(xsrc, ysrc, x + 1, y + 1, RIGHT, UP) = promoted_bishop_diag(xsrc, ysrc, x, y, RIGHT, UP) and x < 8 and y < 8 and empty(x + 1, y + 1)
+        // DOWN-RIGHT
+        rel promoted_bishop_diag(xsrc, ysrc, x + 1, y - 1, RIGHT, DOWN) = promoted_bishop(xsrc, ysrc) and x == xsrc and y == ysrc and x < 8 and y > 0 and empty(x + 1, y - 1)
+        rel promoted_bishop_diag(xsrc, ysrc, x + 1, y - 1, RIGHT, DOWN) = promoted_bishop_diag(xsrc, ysrc, x, y, RIGHT, DOWN) and x < 8 and y > 0 and empty(x + 1, y - 1)
+        // DOWN-LEFT
+        rel promoted_bishop_diag(xsrc, ysrc, x - 1, y - 1, LEFT, DOWN) = promoted_bishop(xsrc, ysrc) and x == xsrc and y == ysrc and x > 0 and y > 0 and empty(x - 1, y - 1)
+        rel promoted_bishop_diag(xsrc, ysrc, x - 1, y - 1, LEFT, DOWN) = promoted_bishop_diag(xsrc, ysrc, x, y, LEFT, DOWN) and x > 0 and y > 0 and empty(x - 1, y - 1)
+        // UP-LEFT
+        rel promoted_bishop_diag(xsrc, ysrc, x - 1, y + 1, LEFT, UP) = promoted_bishop(xsrc, ysrc) and x == xsrc and y == ysrc and x > 0 and y < 8 and empty(x - 1, y + 1)
+        rel promoted_bishop_diag(xsrc, ysrc, x - 1, y + 1, LEFT, UP) = promoted_bishop_diag(xsrc, ysrc, x, y, LEFT, UP) and x > 0 and y < 8 and empty(x - 1, y + 1)
+        rel promoted_bishop_moves(xsrc, ysrc, xdst, ydst) = promoted_bishop_diag(xsrc, ysrc, xdst, ydst, _, _)
+        // UP
+        rel promoted_bishop_moves(x, y, x, y + 1) = promoted_bishop(x, y) and y < 8 and empty(x, y + 1)
+        // DOWN
+        rel promoted_bishop_moves(x, y, x, y - 1) = promoted_bishop(x, y) and y > 0 and empty(x, y - 1)
+        // LEFT
+        rel promoted_bishop_moves(x, y, x - 1, y) = promoted_bishop(x, y) and x > 0 and empty(x - 1, y)
+        // RIGHT
+        rel promoted_bishop_moves(x, y, x + 1, y) = promoted_bishop(x, y) and x < 8 and empty(x + 1, y)
 
         // Knight
         rel knight_moves(x, y, x - 1, y + 2) = knight(x, y) and x < 8 and y < 8 and empty(x - 1, y + 2)
@@ -110,8 +158,12 @@ program = '''
         query silver_moves
         query rook
         query rook_moves
+        query promoted_rook
+        query promoted_rook_moves
         query bishop
         query bishop_moves
+        query promoted_bishop
+        query promoted_bishop_moves
         query knight
         query knight_moves
         query enemy_king
@@ -119,258 +171,174 @@ program = '''
         query enemies
         query checkmate'''
 setup_ctx = scallopy.Context()
-pieces = ["pawn", "silver", "lance", "rook", "bishop", "knight", "gold", "enemies", "enemy_king", "king"]
+pieces = ["pawn", "silver", "lance", "rook", "bishop", "knight", "promoted_pawn", "promoted_silver", "promoted_lance", "promoted_rook", "promoted_bishop", "promoted_knight", "gold", "king",
+          "enemy_pawn", "enemy_silver", "enemy_lance", "enemy_rook", "enemy_bishop", "enemy_knight", "enemy_promoted_pawn", "enemy_promoted_silver", "enemy_promoted_lance", "enemy_promoted_rook", "enemy_promoted_bishop", "enemy_promoted_knight", "enemy_gold", "enemy_king"]
+used_pieces = ["pawn", "gold", "silver", "lance", "rook", "promoted_rook", "bishop", "promoted_bishop", "knight", "king", "enemy_king", "enemies"]
 
-
-
-def gemini_extract_pieces(image_path):
-    img = cv2.imread("test.png")
+def divideImageToGrid(image_path):
+    img = cv2.imread(image_path)
     h, w, _ = img.shape
     cell_h, cell_w = h // 9, w // 9
 
-    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-    model = genai.GenerativeModel("models/gemini-2.0-flash")
-
-    chat = model.start_chat(history=[
-        {
-            "role": "user",
-            "parts": [
-                "Classify the object in the image as 'pawn', 'gold', 'silver', 'lance', 'rook', 'bishop', 'knight', 'king' and their enemy and promoted counter parts. If neither fits, classify as 'empty'.\n\nExample:",
-                {"mime_type": "image/png", "data": open("examples/example_pawn.png", "rb").read()},
-                "pawn"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_gold.png", "rb").read()},
-                "gold"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_silver.png", "rb").read()},
-                "silver"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_lance.png", "rb").read()},
-                "lance"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_rook.png", "rb").read()},
-                "rook"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_bishop.png", "rb").read()},
-                "bishop"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_knight.png", "rb").read()},
-                "knight"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_king.png", "rb").read()},
-                "king"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_promoted_pawn.png", "rb").read()},
-                "promoted_pawn"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_promoted_silver.png", "rb").read()},
-                "promoted_silver"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_promoted_rook.png", "rb").read()},
-                "promoted_rook"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_promoted_bishop.png", "rb").read()},
-                "promoted_bishop"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_promoted_knight.png", "rb").read()},
-                "promoted_knight"
-            ]
-        },
-                {
-            "role": "user",
-            "parts": [
-                "Classify the object in the image as 'pawn', 'gold', 'silver', 'lance', 'rook', 'bishop', 'knight', 'king' and their enemy and promoted counter parts.\n\nExample:",
-                {"mime_type": "image/png", "data": open("examples/example_enemy_pawn.png", "rb").read()},
-                "enemy_pawn"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_gold.png", "rb").read()},
-                "enemy_gold"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_silver.png", "rb").read()},
-                "enemy_silver"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_lance.png", "rb").read()},
-                "enemy_lance"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_rook.png", "rb").read()},
-                "enemy_rook"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_bishop.png", "rb").read()},
-                "enemy_bishop"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_knight.png", "rb").read()},
-                "enemy_knight"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_king.png", "rb").read()},
-                "enemy_king"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_promoted_pawn.png", "rb").read()},
-                "enemy_promoted_pawn"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_promoted_silver.png", "rb").read()},
-                "enemy_promoted_silver"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_promoted_rook.png", "rb").read()},
-                "enemy_promoted_rook"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_promoted_bishop.png", "rb").read()},
-                "enemy_promoted_bishop"
-            ]
-        },
-        {
-            "role": "user",
-            "parts": [
-                {"mime_type": "image/png", "data": open("examples/example_enemy_promoted_knight.png", "rb").read()},
-                "enemy_promoted_knight"
-            ]
-        }
-    ])
-
+    cells = []
     for row in range(9):
         for col in range(9):
             y1, y2 = row * cell_h, (row + 1) * cell_h
             x1, x2 = col * cell_w, (col + 1) * cell_w
             cell = img[y1:y2, x1:x2]
 
+            # Encode to PNG bytes
             _, buffer = cv2.imencode(".png", cell)
             cell_bytes = buffer.tobytes()
-            
-            response = chat.send_message([
-                {"mime_type": "image/png", "data": cell_bytes}
-            ])
 
-            print(f"Cell ({row},{col}):", response.text)
+            # Flip row index so (0,0) = bottom-left
+            coord = (col, 8 - row)
+            cells.append((coord, cell_bytes))
 
-def getPiecesCoords():
-    pieces_coords = {}
-    pieces_coords["enemies"] = [(8, 8),
-            (0, 6), (6, 6), (7, 6), (8, 6),
-            (1, 5), (4 ,5),
-            (5, 4),
-            (1, 2), (3, 2), (4, 2)]
-    pieces_coords["pawn"] = [(6, 3), (0, 2), (5, 2), (8, 2)]
-    pieces_coords["gold"] = [(6, 7), (5, 6), (2, 0)]
-    pieces_coords["silver"] = [(6, 8), (6, 1), (5, 0)]
-    pieces_coords["lance"] = [(0, 0), (8, 0)]
-    pieces_coords["rook"] = []
-    pieces_coords["bishop"] = []
-    pieces_coords["knight"] = [(3, 3), (7, 0)]
-    pieces_coords["enemy_king"] = [(8, 7)]
-    pieces_coords["king"] = [(1, 0)]
+    return cells
 
-    return pieces_coords
+def gemini_extract_pieces(image_path):
+    def parse_gemini_json(response_text):
+        # Try to extract JSON between ``` or ''' markers
+        match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", response_text, re.S)
+        if not match:
+            match = re.search(r"'''(.*?)'''", response_text, re.S)
 
-def setupScallop():
-    pieces_coords = getPiecesCoords()
+        if match:
+            cleaned = match.group(1).strip()
+        else:
+            cleaned = response_text.strip()
+
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError as e:
+            print("JSON decode error:", e)
+            print("Raw response was:\n", response_text)
+            return {}
+        
+    cells = divideImageToGrid(image_path)
+    
+    genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+    model = genai.GenerativeModel("models/gemini-2.0-flash-lite")
+
+    fewshots = [
+        "Classify the object in each square as the examples below.",
+        "Here are examples:",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/empty/empty.png", "rb").read()},
+        "empty",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/pawn/pawn.png", "rb").read()},
+        "pawn",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/gold/gold.png", "rb").read()},
+        "gold",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/silver/silver.png", "rb").read()},
+        "silver",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/lance/lance.png", "rb").read()},
+        "lance",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/rook/rook.png", "rb").read()},
+        "rook",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/bishop/bishop.png", "rb").read()},
+        "bishop",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/knight/knight.png", "rb").read()},
+        "knight",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/king/king.png", "rb").read()},
+        "king",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/promoted_pawn/promoted_pawn.png", "rb").read()},
+        "promoted_pawn",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/promoted_silver/promoted_silver.png", "rb").read()},
+        "promoted_silver",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/promoted_rook/promoted_rook.png", "rb").read()},
+        "promoted_rook",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/promoted_bishop/promoted_bishop.png", "rb").read()},
+        "promoted_bishop",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/promoted_knight/promoted_knight.png", "rb").read()},
+        "promoted_knight",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_pawn/enemy_pawn.png", "rb").read()},
+        "enemy_pawn",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_gold/enemy_gold.png", "rb").read()},
+        "enemy_gold",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_silver/enemy_silver.png", "rb").read()},
+        "enemy_silver",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_lance/enemy_lance.png", "rb").read()},
+        "enemy_lance",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_rook/enemy_rook.png", "rb").read()},
+        "enemy_rook",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_bishop/enemy_bishop.png", "rb").read()},
+        "enemy_bishop",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_knight/enemy_knight.png", "rb").read()},
+        "enemy_knight",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_king/enemy_king.png", "rb").read()},
+        "enemy_king",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_promoted_pawn/enemy_promoted_pawn.png", "rb").read()},
+        "enemy_promoted_pawn",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_promoted_silver/enemy_promoted_silver.png", "rb").read()},
+        "enemy_promoted_silver",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_promoted_rook/enemy_promoted_rook.png", "rb").read()},
+        "enemy_promoted_rook",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_promoted_bishop/enemy_promoted_bishop.png", "rb").read()},
+        "enemy_promoted_bishop",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_promoted_knight/enemy_promoted_knight.png", "rb").read()},
+        "enemy_promoted_knight",
+        "Now classify the following 81 board squares. Return the result ONLY as JSON mapping (row,col) → class."
+    ]
+
+    request = fewshots[:]
+    for (row, col), cell_bytes in cells:
+        request.append(f"Square ({row},{col}):")
+        request.append({"mime_type": "image/png", "data": cell_bytes})
+
+    
+    response = model.generate_content(request).text
+    
+    parsed = parse_gemini_json(response)
+
+    promoted_to_gold = ["promoted_pawn", "promoted_silver", "promoted_knight", "promoted_lance"]
+    enemy_promoted_to_gold = ["enemy_promoted_pawn", "enemy_promoted_silver", "enemy_promoted_knight", "enemy_promoted_lance"]
+
+    pieces_dict = {piece: [] for piece in pieces}
+    pieces_dict["enemies"] = []
+
+    # Fill dictionary
+    for pos, piece in parsed.items():
+        row, col = map(int, re.findall(r"\d+", pos))
+        coord = (row, col)
+
+        # add to individual piece list
+        if piece in pieces_dict:
+            pieces_dict[piece].append(coord)
+        
+        # if it's an enemy, also add to aggregated list
+        if piece.startswith("enemy_"):
+            if piece != "enemy_king": 
+                pieces_dict["enemies"].append(coord)
+
+        if piece in promoted_to_gold:
+            pieces_dict["gold"].append(coord)
+        elif piece in enemy_promoted_to_gold:
+            pieces_dict["enemy_gold"].append(coord)
+
+    return pieces_dict
+
+def setupScallop(image_path, source):
+    if source == "gemini": 
+        pieces_coords = gemini_extract_pieces(image_path)
     setup_ctx.add_relation("pawn", (int, int))
     setup_ctx.add_relation("gold", (int, int))
     setup_ctx.add_relation("silver", (int, int))
     setup_ctx.add_relation("lance", (int, int))
     setup_ctx.add_relation("rook", (int, int))
+    setup_ctx.add_relation("promoted_rook", (int, int))
     setup_ctx.add_relation("bishop", (int, int))
+    setup_ctx.add_relation("promoted_bishop", (int, int))
     setup_ctx.add_relation("knight", (int, int))
     setup_ctx.add_relation("king", (int, int))
     setup_ctx.add_relation("enemy_king", (int, int))
     setup_ctx.add_relation("enemies", (int, int))
-    for piece in pieces:
+    for piece in used_pieces:
         setup_ctx.add_facts(piece, pieces_coords[piece])
 
     setup_ctx.add_program(program)
     setup_ctx.run()
     
-
 def simulateMovement(piece):
     if piece == "king": return None
 
@@ -385,6 +353,9 @@ def simulateMovement(piece):
         piece_actions_dict[initial_pos].append(next_pos)
 
     for p in piece_actions_dict:
+        if p not in piece_pos:
+            # skip this move, or find the matching piece
+            continue
         for action in piece_actions_dict[p]:
             new_pieces_pos = piece_pos.copy()
             new_pieces_pos.remove(p)
@@ -395,13 +366,15 @@ def simulateMovement(piece):
             movement_ctx.add_relation("silver", (int, int))
             movement_ctx.add_relation("lance", (int, int))
             movement_ctx.add_relation("rook", (int, int))
+            movement_ctx.add_relation("promoted_rook", (int, int))
             movement_ctx.add_relation("bishop", (int, int))
+            movement_ctx.add_relation("promoted_bishop", (int, int))
             movement_ctx.add_relation("knight", (int, int))
             movement_ctx.add_relation("king", (int, int))
             movement_ctx.add_relation("enemy_king", (int, int))
             movement_ctx.add_relation("enemies", (int, int))
             
-            for pc in pieces:
+            for pc in used_pieces:
                 if pc == piece:
                     movement_ctx.add_facts(piece, new_pieces_pos)
                 else:
@@ -414,13 +387,13 @@ def simulateMovement(piece):
             if ischeckmate: return (p, action)
     return None
 
-
 def main():
-    gemini_extract_pieces("test.png")
-    # setupScallop()
-    # for piece in pieces[:7]:
-    #     result = simulateMovement(piece)
-    #     if result is not None:
-    #         print(f"Move {piece} from {result[0]} to {result[1]}")
+    image_path = "scallop/experiments/shogi/test.png"
+    setupScallop(image_path, "gemini")
+    print("Possible solutions:")
+    for piece in used_pieces[:9]:
+        result = simulateMovement(piece)
+        if result is not None:
+            print(f"    Move {piece} from {result[0]} to {result[1]}")
 
 main()
