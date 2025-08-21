@@ -8,11 +8,11 @@ import cv2
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
 import json
 import re
-from collections import defaultdict
 
+os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=false'
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
 program = '''
         type direction = UP | DOWN | LEFT | RIGHT
 
@@ -318,9 +318,72 @@ def gemini_extract_pieces(image_path):
 
     return pieces_dict
 
+import re
+from collections import defaultdict
+import numpy as np
+import cv2
+from tensorflow.keras.models import load_model
+
+def cnn_extract_pieces(image_path):
+    cells = divideImageToGrid(image_path)
+    classes = [
+        "bishop", "empty", "enemy_bishop", "enemy_gold", "enemy_king",
+        "enemy_knight", "enemy_lance", "enemy_pawn", "enemy_promoted_bishop",
+        "enemy_promoted_knight", "enemy_promoted_lance", "enemy_promoted_pawn",
+        "enemy_promoted_rook", "enemy_promoted_silver", "enemy_rook",
+        "enemy_silver", "gold", "king", "knight", "lance", "pawn",
+        "promoted_bishop", "promoted_knight", "promoted_lance",
+        "promoted_pawn", "promoted_rook", "promoted_silver", "rook", "silver"
+    ]
+
+    promoted_to_gold = ["promoted_pawn", "promoted_silver", "promoted_knight", "promoted_lance"]
+    enemy_promoted_to_gold = ["enemy_promoted_pawn", "enemy_promoted_silver", "enemy_promoted_knight", "enemy_promoted_lance"]
+
+    # Initialize dictionary
+    pieces_dict = {piece: [] for piece in classes}
+    pieces_dict["enemies"] = []
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    model_path = os.path.join(script_dir, "shogi_cnn_model.keras")
+    model = load_model(model_path)
+
+    # Predict pieces for each cell
+    for coord, cell_bytes in cells:
+        # Convert bytes to image
+        nparr = np.frombuffer(cell_bytes, np.uint8)
+        cell_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        # Preprocess
+        cell_img = cv2.resize(cell_img, (128, 128))
+        cell_img = cell_img / 255.0
+        cell_img = np.expand_dims(cell_img, axis=0)
+
+        # Predict
+        predictions = model.predict(cell_img, verbose=0)
+        predicted_index = int(np.argmax(predictions))
+        piece_name = classes[predicted_index]
+
+        # Add to individual piece list
+        pieces_dict[piece_name].append(coord)
+
+        # Aggregate enemy pieces (except enemy_king)
+        if piece_name.startswith("enemy_") and piece_name != "enemy_king":
+            pieces_dict["enemies"].append(coord)
+
+        # Aggregate promoted pieces as gold
+        if piece_name in promoted_to_gold:
+            pieces_dict["gold"].append(coord)
+        elif piece_name in enemy_promoted_to_gold:
+            pieces_dict["enemy_gold"].append(coord)
+
+    return pieces_dict
+
+
 def setupScallop(image_path, source):
     if source == "gemini": 
         pieces_coords = gemini_extract_pieces(image_path)
+    elif source == "cnn":
+        pieces_coords = cnn_extract_pieces(image_path)
     setup_ctx.add_relation("pawn", (int, int))
     setup_ctx.add_relation("gold", (int, int))
     setup_ctx.add_relation("silver", (int, int))
@@ -389,7 +452,8 @@ def simulateMovement(piece):
 
 def main():
     image_path = "scallop/experiments/shogi/test.png"
-    setupScallop(image_path, "gemini")
+    
+    setupScallop(image_path, "cnn")
     print("Possible solutions:")
     for piece in used_pieces[:9]:
         result = simulateMovement(piece)
