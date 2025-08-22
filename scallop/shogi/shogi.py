@@ -6,10 +6,9 @@ import matplotlib
 matplotlib.use("Agg")  # Use non-GUI backend for headless environments
 import cv2
 import numpy as np
-import tensorflow as tf
-from tensorflow.keras.models import load_model
 import json
 import re
+from contextlib import redirect_stdout
 
 os.environ['TF_XLA_FLAGS'] = '--tf_xla_enable_xla_devices=false'
 os.environ["CUDA_VISIBLE_DEVICES"] = "-1"
@@ -35,26 +34,40 @@ program = '''
 
         // Gold general
         rel gold_moves(x, y, x, y + 1) = gold(x, y) and y < 8 and (empty(x, y + 1) or enemies(x, y + 1))
-        rel gold_moves(x, y, x - 1, y + 1) = gold(x, y) and y < 8 and x > 0 and (empty(x - 1, y + 1) or enemies(x - 1, y + 1)) 
-        rel gold_moves(x, y, x + 1, y + 1) = gold(x, y) and y < 8 and x < 8 and (empty(x + 1, y + 1) or enemies(x + 1, y + 1))
-        rel gold_moves(x, y, x - 1, y) = gold(x, y) and x > 0 and (empty(x - 1, y) or enemies(x - 1, y))
-        rel gold_moves(x, y, x + 1, y) = gold(x, y) and x < 8 and (empty(x + 1, y) or enemies(x + 1, y))
-        rel gold_moves(x, y, x, y - 1) = gold(x, y) and y > 0 and (empty(x, y - 1) or enemies(x, y - 1))
+        rel gold_moves(x, y, x - 1, y + 1) = gold(x, y) and y < 8 and x > 0 and 
+                                             (empty(x - 1, y + 1) or enemies(x - 1, y + 1)) 
+        rel gold_moves(x, y, x + 1, y + 1) = gold(x, y) and y < 8 and x < 8 and 
+                                             (empty(x + 1, y + 1) or enemies(x + 1, y + 1))
+        rel gold_moves(x, y, x - 1, y) = gold(x, y) and x > 0 and 
+                                             (empty(x - 1, y) or enemies(x - 1, y))
+        rel gold_moves(x, y, x + 1, y) = gold(x, y) and x < 8 and 
+                                             (empty(x + 1, y) or enemies(x + 1, y))
+        rel gold_moves(x, y, x, y - 1) = gold(x, y) and y > 0 and 
+                                             (empty(x, y - 1) or enemies(x, y - 1))
 
         // Silver general
-        rel silver_moves(x, y, x, y + 1) = silver(x, y) and y < 8 and (empty(x, y + 1) or enemies(x, y + 1))
-        rel silver_moves(x, y, x - 1, y + 1) = silver(x, y) and y < 8 and x > 0 and (empty(x - 1, y + 1) or enemies(x - 1, y + 1))
-        rel silver_moves(x, y, x + 1, y + 1) = silver(x, y) and y < 8 and x < 8 and (empty(x + 1, y + 1) or enemies(x + 1, y + 1))
-        rel silver_moves(x, y, x - 1, y - 1) = silver(x, y) and y > 0 and x > 0 and (empty(x - 1, y - 1) or enemies(x - 1, y - 1))
-        rel silver_moves(x, y, x + 1, y - 1) = silver(x, y) and y > 0 and x < 8 and (empty(x + 1, y - 1) or enemies(x + 1, y - 1))
+        rel silver_moves(x, y, x, y + 1) = silver(x, y) and y < 8 and 
+                                           (empty(x, y + 1) or enemies(x, y + 1))
+        rel silver_moves(x, y, x - 1, y + 1) = silver(x, y) and y < 8 and x > 0 and 
+                                           (empty(x - 1, y + 1) or enemies(x - 1, y + 1))
+        rel silver_moves(x, y, x + 1, y + 1) = silver(x, y) and y < 8 and x < 8 and 
+                                           (empty(x + 1, y + 1) or enemies(x + 1, y + 1))
+        rel silver_moves(x, y, x - 1, y - 1) = silver(x, y) and y > 0 and x > 0 and 
+                                           (empty(x - 1, y - 1) or enemies(x - 1, y - 1))
+        rel silver_moves(x, y, x + 1, y - 1) = silver(x, y) and y > 0 and x < 8 and 
+                                           (empty(x + 1, y - 1) or enemies(x + 1, y - 1))
 
         // Lance
         rel lance_moves_empty(x, y, x, y + 1) = lance(x, y) and y < 8 and empty(x, y + 1)
-        rel lance_moves_empty(x, y, x, y2) = lance_moves_empty(x, y, x, y1) and y1 < 8 and empty(x, y1 + 1) and y2 == y1 + 1
-        rel lance_moves_enemy(x, y, x, y2) = lance_moves_empty(x, y, x, y1) and y1 < 8 and enemies(x, y1 + 1) and y2 == y1 + 1
+        rel lance_moves_empty(x, y, x, y2) = lance_moves_empty(x, y, x, y1) and y1 < 8 and 
+                                             empty(x, y1 + 1) and y2 == y1 + 1
+        rel lance_moves_enemy(x, y, x, y2) = lance_moves_empty(x, y, x, y1) and y1 < 8 and 
+                                             enemies(x, y1 + 1) and y2 == y1 + 1
         rel lance_moves_adjacent(x, y, x, y + 1) = lance(x, y) and enemies(x, y + 1) and y < 8
 
-        rel lance_moves(xsrc, ysrc, xdst, ydst) = lance_moves_empty(xsrc, ysrc, xdst, ydst) or lance_moves_enemy(xsrc, ysrc, xdst, ydst) or lance_moves_adjacent(xsrc, ysrc, xdst, ydst)
+        rel lance_moves(xsrc, ysrc, xdst, ydst) = lance_moves_empty(xsrc, ysrc, xdst, ydst) or 
+                                                  lance_moves_enemy(xsrc, ysrc, xdst, ydst) or 
+                                                  lance_moves_adjacent(xsrc, ysrc, xdst, ydst)
 
 
         // Rook
@@ -182,14 +195,14 @@ program = '''
         rel knight_moves(x, y, x + 1, y + 2) = knight(x, y) and x < 8 and y < 8 and (empty(x + 1, y + 2) or enemies(x + 1, y + 2))
 
         // Enemy_king
-        rel enemy_king_moves(x, y, x - 1, y + 1) = enemy_king(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1) and not check()// Up-left
-        rel enemy_king_moves(x, y, x, y + 1) = enemy_king(x, y) and y < 8 and empty(x, y + 1) and not check() // Up
-        rel enemy_king_moves(x, y, x + 1, y + 1) = enemy_king(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1) and not check() // Up-right
-        rel enemy_king_moves(x, y, x - 1, y) = enemy_king(x, y) and x > 0 and empty(x - 1, y) and not check() // Left
-        rel enemy_king_moves(x, y, x + 1, y) = enemy_king(x, y) and x < 8 and empty(x + 1, y) and not check() // Right
-        rel enemy_king_moves(x, y, x - 1, y - 1) = enemy_king(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1) and not check() // Down-left
-        rel enemy_king_moves(x, y, x, y - 1) = enemy_king(x, y) and y > 0 and empty(x, y - 1) and not check() // Down
-        rel enemy_king_moves(x, y, x + 1, y - 1) = enemy_king(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1) and not check() //Down-right
+        rel enemy_king_moves(x, y, x - 1, y + 1) = enemy_king(x, y) and x > 0 and y < 8 and not enemies(x - 1, y + 1) and not check()// Up-left
+        rel enemy_king_moves(x, y, x, y + 1) = enemy_king(x, y) and y < 8 and not enemies(x, y + 1) and not check() // Up
+        rel enemy_king_moves(x, y, x + 1, y + 1) = enemy_king(x, y) and x < 8 and y < 8 and not enemies(x + 1, y + 1) and not check() // Up-right
+        rel enemy_king_moves(x, y, x - 1, y) = enemy_king(x, y) and x > 0 and not enemies(x - 1, y) and not check() // Left
+        rel enemy_king_moves(x, y, x + 1, y) = enemy_king(x, y) and x < 8 and not enemies(x + 1, y) and not check() // Right
+        rel enemy_king_moves(x, y, x - 1, y - 1) = enemy_king(x, y) and x > 0 and y > 0 and not enemies(x - 1, y - 1) and not check() // Down-left
+        rel enemy_king_moves(x, y, x, y - 1) = enemy_king(x, y) and y > 0 and not enemies(x, y - 1) and not check() // Down
+        rel enemy_king_moves(x, y, x + 1, y - 1) = enemy_king(x, y) and x < 8 and y > 0 and not enemies(x + 1, y - 1) and not check() //Down-right
 
         // Checkmate logic
         rel num_enemy_king_moves(n) = n := count(x, y: enemy_king_moves(_, _, x, y))
@@ -220,6 +233,7 @@ program = '''
         query checkmate'''
 
 setup_ctx = scallopy.Context()
+
 pieces = ["pawn", "silver", "lance", "rook", "bishop", "knight", "promoted_pawn", "promoted_silver", "promoted_lance", "promoted_rook", "promoted_bishop", "promoted_knight", "gold", "king",
           "enemy_pawn", "enemy_silver", "enemy_lance", "enemy_rook", "enemy_bishop", "enemy_knight", "enemy_promoted_pawn", "enemy_promoted_silver", "enemy_promoted_lance", "enemy_promoted_rook", "enemy_promoted_bishop", "enemy_promoted_knight", "enemy_gold", "enemy_king"]
 used_pieces = ["pawn", "gold", "silver", "lance", "rook", "promoted_rook", "bishop", "promoted_bishop", "knight", "king", "enemy_king", "enemies"]
@@ -301,6 +315,8 @@ def gemini_extract_pieces(image_path):
         "promoted_bishop",
         {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/promoted_knight/promoted_knight.png", "rb").read()},
         "promoted_knight",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/promoted_lance/promoted_lance.png", "rb").read()},
+        "promoted_lance",
         {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_pawn/enemy_pawn.png", "rb").read()},
         "enemy_pawn",
         {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_gold/enemy_gold.png", "rb").read()},
@@ -327,6 +343,8 @@ def gemini_extract_pieces(image_path):
         "enemy_promoted_bishop",
         {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_promoted_knight/enemy_promoted_knight.png", "rb").read()},
         "enemy_promoted_knight",
+        {"mime_type": "image/png", "data": open("scallop/experiments/shogi/examples/enemy_promoted_lance/enemy_promoted_lance.png", "rb").read()},
+        "enemy_promoted_lance",
         "Now classify the following 81 board squares. Return the result ONLY as JSON mapping (row,col) → class."
     ]
 
@@ -367,73 +385,9 @@ def gemini_extract_pieces(image_path):
 
     return pieces_dict
 
-import re
-from collections import defaultdict
-import numpy as np
-import cv2
-from tensorflow.keras.models import load_model
-
-def cnn_extract_pieces(image_path):
-    cells = divideImageToGrid(image_path)
-    classes = [
-        "bishop", "empty", "enemy_bishop", "enemy_gold", "enemy_king",
-        "enemy_knight", "enemy_lance", "enemy_pawn", "enemy_promoted_bishop",
-        "enemy_promoted_knight", "enemy_promoted_lance", "enemy_promoted_pawn",
-        "enemy_promoted_rook", "enemy_promoted_silver", "enemy_rook",
-        "enemy_silver", "gold", "king", "knight", "lance", "pawn",
-        "promoted_bishop", "promoted_knight", "promoted_lance",
-        "promoted_pawn", "promoted_rook", "promoted_silver", "rook", "silver"
-    ]
-
-    promoted_to_gold = ["promoted_pawn", "promoted_silver", "promoted_knight", "promoted_lance"]
-    enemy_promoted_to_gold = ["enemy_promoted_pawn", "enemy_promoted_silver", "enemy_promoted_knight", "enemy_promoted_lance"]
-
-    # Initialize dictionary
-    pieces_dict = {piece: [] for piece in classes}
-    pieces_dict["enemies"] = []
-
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    model_path = os.path.join(script_dir, "shogi_cnn_model.keras")
-    model = load_model(model_path)
-
-    # Predict pieces for each cell
-    for coord, cell_bytes in cells:
-        # Convert bytes to image
-        nparr = np.frombuffer(cell_bytes, np.uint8)
-        cell_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-        # Preprocess
-        cell_img = cv2.resize(cell_img, (128, 128))
-        cell_img = cell_img / 255.0
-        cell_img = np.expand_dims(cell_img, axis=0)
-
-        # Predict
-        predictions = model.predict(cell_img, verbose=0)
-        predicted_index = int(np.argmax(predictions))
-        piece_name = classes[predicted_index]
-
-        # Add to individual piece list
-        pieces_dict[piece_name].append(coord)
-
-        # Aggregate enemy pieces (except enemy_king)
-        if piece_name.startswith("enemy_") and piece_name != "enemy_king":
-            pieces_dict["enemies"].append(coord)
-
-        # Aggregate promoted pieces as gold
-        if piece_name in promoted_to_gold:
-            pieces_dict["gold"].append(coord)
-        elif piece_name in enemy_promoted_to_gold:
-            pieces_dict["enemy_gold"].append(coord)
-
-    return pieces_dict
-
-
 def setupScallop(image_path, source):
     if source == "gemini": 
         pieces_coords = gemini_extract_pieces(image_path)
-    elif source == "cnn":
-        pieces_coords = cnn_extract_pieces(image_path)
-    print(pieces_coords)
     setup_ctx.add_relation("pawn", (int, int))
     setup_ctx.add_relation("gold", (int, int))
     setup_ctx.add_relation("silver", (int, int))
@@ -451,10 +405,10 @@ def setupScallop(image_path, source):
 
     setup_ctx.add_program(program)
     setup_ctx.run()
-    
+
 def simulateMovement(piece):
     if piece == "king": return None
-
+    candidates = []
     piece_pos = list(setup_ctx.relation(piece))
     piece_actions = list(setup_ctx.relation(piece + "_moves"))
     piece_actions_dict = {}
@@ -464,7 +418,6 @@ def simulateMovement(piece):
         if initial_pos not in piece_actions_dict:
             piece_actions_dict[initial_pos] = []
         piece_actions_dict[initial_pos].append(next_pos)
-
     for p in piece_actions_dict:
         if p not in piece_pos:
             # skip this move, or find the matching piece
@@ -497,17 +450,35 @@ def simulateMovement(piece):
 
             movement_ctx.run()
             ischeckmate = len(list(movement_ctx.relation("checkmate")))
-            if ischeckmate: return (p, action)
-    return None
+            if ischeckmate: candidates.append((p, action))
+    if len(candidates) == 0: return None
+    return candidates
 
-def main():
-    image_path = "scallop/experiments/shogi/tests/board1.png"
-    
+def runTest(image_path):
+    global setup_ctx
+    setup_ctx = scallopy.Context()
     setupScallop(image_path, "gemini")
     print("Possible solutions:")
     for piece in used_pieces[:9]:
-        result = simulateMovement(piece)
-        if result is not None:
-            print(f"    Move {piece} from {result[0]} to {result[1]}")
+        results = simulateMovement(piece)
+        if results is not None:
+            for result in results:
+                print(f"    Move {piece} from {result[0]} to {result[1]}")
+    
+
+def main():
+    # output_file = "test_results.txt"
+    # os.makedirs("scallop/experiments/shogi/tests/output", exist_ok=True)
+    # with open(f"scallop/experiments/shogi/tests/output/{output_file}", "w") as f:
+    #     for i in range(1, 51):
+    #         print(f"Test for board {i}...")
+    #         with redirect_stdout(f):
+    #             print("===========================")
+    #             print(f"Test for board {i}: ")
+    #             image_path = f"scallop/experiments/shogi/tests/board{i}.png"
+    #             runTest(image_path)
+    #             print("===========================\n\n")
+    runTest("scallop/experiments/shogi/tests/board49.png")
+
 
 main()
