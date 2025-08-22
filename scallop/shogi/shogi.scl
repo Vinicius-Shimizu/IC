@@ -1,15 +1,18 @@
 // enemies
-rel enemies = {
-    (8, 8),
-    (0, 6), (6, 6), (7, 6), (8, 6),
-    (1, 5), (4 ,5),
-    (5, 4),
-    (1, 2), (3, 2), (4, 2)
-}
-
+type enemies(x: i32, y: i32)
 type direction = UP | DOWN | LEFT | RIGHT
+type board(x: i32, y: i32)
+type gold(x: i32, y: i32)
+type silver(x: i32, y:i32)
+type lance(x: i32, y:i32)
+type rook(x: i32, y:i32)
+type promoted_rook(x: i32, y:i32)
+type bishop(x: i32, y:i32)
+type promoted_bishop(x: i32, y: i32)
+type knight(x: i32, y:i32)
+type enemy_king(x: i32, y:i32)
 
-type board(x: usize, y: usize)
+
 rel board = {
     (0, 8), (1, 8), (2, 8), (3, 8), (4, 8), (5, 8), (6, 8), (7, 8), (8, 8),
     (0, 7), (1, 7), (2, 7), (3, 7), (4, 7), (5, 7), (6, 7), (7, 7), (8, 7),
@@ -22,104 +25,226 @@ rel board = {
     (0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (8, 0)
 }
 
-rel empty(x, y) = board(x, y) and not enemies(x, y) and not pawn(x, y) and not gold(x, y) and not silver(x, y) and not lance(x, y) and not rook(x, y) and not bishop(x, y) and not knight(x, y)
+rel enemies = {
+    (8, 8),
+    (0, 6), (6, 6), (7, 6), (8, 6),
+    (1, 5), (4, 5),
+    (5, 4),
+    (1, 2), (3, 2), (4, 2), (4, 6)
+}
+rel enemies(x, y) = enemy_king(x, y)
 
-
-// Pawn
 rel pawn = {
-    (6, 3), (0, 2), (5, 2), (8, 2)
+    (6, 3), (5, 2), (8, 2)
+    
 }
-rel pawn_moves(x, y + 1) = pawn(x, y) and y < 8 and empty(x, y + 1)
 
-// Gold general
-type gold(x: usize, y: usize)
 rel gold = {
-    (7, 7), (5, 6), (2, 0)
+    (6, 7), (5, 6), (2, 0)
 }
-rel gold_moves(x, y + 1) = gold(x, y) and y < 8 and empty(x, y + 1) 
-rel gold_moves(x - 1, y + 1) = gold(x, y) and y < 8 and x > 0 and empty(x - 1, y + 1) 
-rel gold_moves(x + 1, y + 1) = gold(x, y) and y < 8 and x < 8 and empty(x + 1, y + 1)
-rel gold_moves(x - 1, y) = gold(x, y) and x > 0 and empty(x - 1, y)
-rel gold_moves(x + 1, y) = gold(x, y) and x < 8 and empty(x + 1, y)
-rel gold_moves(x, y - 1) = gold(x, y) and y > 0 and empty(x, y - 1)
 
-// Silver general
-type silver(x: usize, y:usize)
 rel silver = {
     (6, 8), (6, 1), (5, 0)
 }
-rel silver_moves(x, y + 1) = silver(x, y) and y < 8 and empty(x, y + 1)
-rel silver_moves(x - 1, y + 1) = silver(x, y) and y < 8 and x > 0 and empty(x - 1, y + 1)
-rel silver_moves(x + 1, y + 1) = silver(x, y) and y < 8 and x < 8 and empty(x + 1, y + 1)
-rel silver_moves(x - 1, y - 1) = silver(x, y) and y > 0 and x > 0 and empty(x - 1, y - 1)
-rel silver_moves(x + 1, y - 1) = silver(x, y) and y > 0 and x < 8 and empty(x + 1, y - 1)
 
-// Lance
-type lance(x: usize, y:usize)
 rel lance = {
-    (0, 0), (8, 0)
+    (0, 0)
 }
-rel lance_moves(x, y + 1) = lance(x, y) and y < 8 and empty(x, y + 1)
-rel lance_moves(x, y + 1) = lance_moves(x, y) and empty(x, y + 1)
 
-// Rook
-type rook(x: usize, y:usize)
 rel rook = {
     
 }
-type rook_line(x: usize, y : usize, dir: direction)
-rel rook_line(x, y + 1, UP) = rook(x, y) and y < 8 and empty(x, y + 1)
-rel rook_line(x, y + 1, UP) = rook_line(x, y, UP) and y < 8 and empty(x, y + 1)
-rel rook_line(x, y - 1, DOWN) = rook(x, y) and y > 0 and empty(x, y - 1)
-rel rook_line(x, y - 1, DOWN) = rook_line(x, y, DOWN) and y > 0 and empty(x, y - 1)
-rel rook_line(x + 1, y, RIGHT) = rook(x, y) and x < 8 and empty(x + 1, y)
-rel rook_line(x + 1, y, RIGHT) = rook_line(x, y, RIGHT) and x < 8 and empty(x + 1, y)
-rel rook_line(x - 1, y, LEFT) = rook(x, y) and x > 0 and empty(x - 1, y)
-rel rook_line(x - 1, y, LEFT) = rook_line(x, y, LEFT) and x > 0 and empty(x - 1, y)
-rel rook_moves(x, y) = rook_line(x, y, _)
 
-// Bishop
-type bishop(x: usize, y:usize)
+rel promoted_rook = {
+    (4, 4)
+}
+
 rel bishop = {
-    
+    (1, 3)
 }
-type bishop_diag(x: usize, y: usize, hor_dir: direction, vert_dir: direction)
-rel bishop_diag(x + 1, y + 1, UP, RIGHT) = bishop(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1)
-rel bishop_diag(x + 1, y + 1, UP, RIGHT) = bishop_diag(x, y, UP, RIGHT) and x < 8 and y < 8 and empty(x + 1, y + 1)
-rel bishop_diag(x + 1, y - 1, DOWN, RIGHT) = bishop(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1)
-rel bishop_diag(x + 1, y - 1, DOWN, RIGHT) = bishop_diag(x, y, DOWN, RIGHT) and x < 8 and y > 0 and empty(x + 1, y - 1)
-rel bishop_diag(x - 1, y - 1, DOWN, LEFT) = bishop(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1)
-rel bishop_diag(x - 1, y - 1, DOWN, LEFT) = bishop_diag(x, y, DOWN, LEFT) and x > 0 and y > 0 and empty(x - 1, y - 1)
-rel bishop_diag(x - 1, y + 1, UP, LEFT) = bishop(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1)
-rel bishop_diag(x - 1, y + 1, UP, LEFT) = bishop_diag(x, y, UP, LEFT) and x > 0 and y < 8 and empty(x - 1, y + 1)
-rel bishop_moves(x, y) = bishop_diag(x, y, _, _)
 
-// Knight
-type knight(x: usize, y:usize)
+rel promoted_bishop = {
+    (2, 1)
+}
+
 rel knight = {
-    (3, 3), (7, 0)
+    (7, 0)
 }
-rel knight_moves(x - 1, y + 2) = knight(x, y) and x < 8 and y < 8 and empty(x - 1, y + 2)
-rel knight_moves(x + 1, y + 2) = knight(x, y) and x < 8 and y < 8 and empty(x + 1, y + 2)
 
-// Enemy_king
-type enemy_king(x: usize, y:usize)
 rel enemy_king = {
     (8, 7)
 }
-rel enemy_king_moves(x - 1, y + 1) = enemy_king(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1) and not check()// Up-left
-rel enemy_king_moves(x, y + 1) = enemy_king(x, y) and y < 8 and empty(x, y + 1) and not check() // Up
-rel enemy_king_moves(x + 1, y + 1) = enemy_king(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1) and not check() // Up-right
-rel enemy_king_moves(x - 1, y) = enemy_king(x, y) and x > 0 and empty(x - 1, y) and not check() // Left
-rel enemy_king_moves(x + 1, y) = enemy_king(x, y) and x < 8 and empty(x + 1, y) and not check() // Right
-rel enemy_king_moves(x - 1, y - 1) = enemy_king(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1) and not check() // Down-left
-rel enemy_king_moves(x, y - 1) = enemy_king(x, y) and y > 0 and empty(x, y - 1) and not check() // Down
-rel enemy_king_moves(x + 1, y - 1) = enemy_king(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1) and not check() //Down-right
+
+rel empty(x, y) = board(x, y) and not enemies(x, y) and not pawn(x, y) and not gold(x, y) and not silver(x, y) and not lance(x, y) and not rook(x, y) and not promoted_rook(x, y) and not bishop(x, y) and not promoted_bishop(x, y) and not knight(x, y)
+
+// Pawn
+rel pawn_moves(x, y, x, y + 1) = pawn(x, y) and y < 8 and (empty(x, y + 1) or enemies(x, y + 1))
+
+// Gold general
+rel gold_moves(x, y, x, y + 1) = gold(x, y) and y < 8 and (empty(x, y + 1) or enemies(x, y + 1))
+rel gold_moves(x, y, x - 1, y + 1) = gold(x, y) and y < 8 and x > 0 and (empty(x - 1, y + 1) or enemies(x - 1, y + 1)) 
+rel gold_moves(x, y, x + 1, y + 1) = gold(x, y) and y < 8 and x < 8 and (empty(x + 1, y + 1) or enemies(x + 1, y + 1))
+rel gold_moves(x, y, x - 1, y) = gold(x, y) and x > 0 and (empty(x - 1, y) or enemies(x - 1, y))
+rel gold_moves(x, y, x + 1, y) = gold(x, y) and x < 8 and (empty(x + 1, y) or enemies(x + 1, y))
+rel gold_moves(x, y, x, y - 1) = gold(x, y) and y > 0 and (empty(x, y - 1) or enemies(x, y - 1))
+
+// Silver general
+rel silver_moves(x, y, x, y + 1) = silver(x, y) and y < 8 and (empty(x, y + 1) or enemies(x, y + 1))
+rel silver_moves(x, y, x - 1, y + 1) = silver(x, y) and y < 8 and x > 0 and (empty(x - 1, y + 1) or enemies(x - 1, y + 1))
+rel silver_moves(x, y, x + 1, y + 1) = silver(x, y) and y < 8 and x < 8 and (empty(x + 1, y + 1) or enemies(x + 1, y + 1))
+rel silver_moves(x, y, x - 1, y - 1) = silver(x, y) and y > 0 and x > 0 and (empty(x - 1, y - 1) or enemies(x - 1, y - 1))
+rel silver_moves(x, y, x + 1, y - 1) = silver(x, y) and y > 0 and x < 8 and (empty(x + 1, y - 1) or enemies(x + 1, y - 1))
+
+// Lance
+rel lance_moves_empty(x, y, x, y + 1) = lance(x, y) and y < 8 and empty(x, y + 1)
+rel lance_moves_empty(x, y, x, y2) = lance_moves_empty(x, y, x, y1) and y1 < 8 and empty(x, y1 + 1) and y2 == y1 + 1
+rel lance_moves_enemy(x, y, x, y2) = lance_moves_empty(x, y, x, y1) and y1 < 8 and enemies(x, y1 + 1) and y2 == y1 + 1
+rel lance_moves_adjacent(x, y, x, y + 1) = lance(x, y) and enemies(x, y + 1) and y < 8
+
+rel lance_moves(xsrc, ysrc, xdst, ydst) = lance_moves_empty(xsrc, ysrc, xdst, ydst) or lance_moves_enemy(xsrc, ysrc, xdst, ydst) or lance_moves_adjacent(xsrc, ysrc, xdst, ydst)
+
+
+// Rook
+// UP
+rel rook_line_empty(x, y, x, y + 1, UP) = rook(x, y) and y < 8 and empty(x, y + 1)
+rel rook_line_empty(x, y, x, y2, UP) = rook_line_empty(x, y, x, y1, UP) and y1 < 8 and empty(x, y1 + 1) and y2 == y1 + 1
+rel rook_line_enemies(x, y, x, y2, UP) = rook_line_empty(x, y, x, y1, UP) and y1 < 8 and enemies(x, y1 + 1) and y2 == y1 + 1
+rel rook_line_adjacent(x, y, x, y + 1, UP) = rook(x, y) and enemies(x, y + 1) and y < 8
+// DOWN
+rel rook_line_empty(x, y, x, y - 1, DOWN) = rook(x, y) and y > 0 and empty(x, y - 1)
+rel rook_line_empty(x, y, x, y2, DOWN) = rook_line_empty(x, y, x, y1, DOWN) and y1 > 0 and empty(x, y1 - 1) and y2 == y1 - 1
+rel rook_line_enemies(x, y, x, y2, DOWN) = rook_line_empty(x, y, x, y1, DOWN) and y1 > 0 and enemies(x, y1 - 1) and y2 == y1 - 1
+rel rook_line_adjacent(x, y, x, y - 1, DOWN) = rook(x, y) and enemies(x, y - 1) and y > 0
+// RIGHT
+rel rook_line_empty(x, y, x + 1, y, RIGHT) = rook(x, y) and x < 8 and empty(x + 1, y)
+rel rook_line_empty(x, y, x2, y, RIGHT) = rook_line_empty(x, y, x1, y, RIGHT) and x1 < 8 and empty(x1 + 1, y) and x2 == x1 + 1
+rel rook_line_enemies(x, y, x2, y, RIGHT) = rook_line_empty(x, y, x1, y, RIGHT) and x1 < 8 and enemies(x1 + 1, y) and x2 == x1 + 1
+rel rook_line_adjacent(x, y, x + 1, y, RIGHT) = rook(x, y) and enemies(x + 1, y) and x < 8
+// LEFT
+rel rook_line_empty(x, y, x - 1, y, LEFT) = rook(x, y) and x > 0 and empty(x - 1, y)
+rel rook_line_empty(x, y, x2, y, LEFT) = rook_line_empty(x, y, x1, y, LEFT) and x1 > 0 and empty(x1 - 1, y) and x2 == x1 - 1
+rel rook_line_enemies(x, y, x2, y, LEFT) = rook_line_empty(x, y, x1, y, LEFT) and x1 > 0 and enemies(x1 - 1, y) and x2 == x1 - 1
+rel rook_line_adjacent(x, y, x - 1, y, LEFT) = rook(x, y) and enemies(x - 1, y) and x > 0
+
+rel rook_moves(x1, y1, x2, y2) = rook_line_empty(x1, y1, x2, y2, UP) or rook_line_enemies(x1, y1, x2, y2, UP) or rook_line_adjacent(x1, y1, x2, y2, UP)
+rel rook_moves(x1, y1, x2, y2) = rook_line_empty(x1, y1, x2, y2, DOWN) or rook_line_enemies(x1, y1, x2, y2, DOWN) or rook_line_adjacent(x1, y1, x2, y2, DOWN)
+rel rook_moves(x1, y1, x2, y2) = rook_line_empty(x1, y1, x2, y2, RIGHT) or rook_line_enemies(x1, y1, x2, y2, RIGHT) or rook_line_adjacent(x1, y1, x2, y2, RIGHT)
+rel rook_moves(x1, y1, x2, y2) = rook_line_empty(x1, y1, x2, y2, LEFT) or rook_line_enemies(x1, y1, x2, y2, LEFT) or rook_line_adjacent(x1, y1, x2, y2, LEFT)
+
+// Promoted Rook
+// UP
+rel promoted_rook_line_empty(x, y, x, y + 1, UP) = promoted_rook(x, y) and y < 8 and empty(x, y + 1)
+rel promoted_rook_line_empty(x, y, x, y2, UP) = promoted_rook_line_empty(x, y, x, y1, UP) and y1 < 8 and empty(x, y1 + 1) and y2 == y1 + 1
+rel promoted_rook_line_enemies(x, y, x, y2, UP) = promoted_rook_line_empty(x, y, x, y1, UP) and y1 < 8 and enemies(x, y1 + 1) and y2 == y1 + 1
+rel promoted_rook_line_adjacent(x, y, x, y + 1, UP) = promoted_rook(x, y) and enemies(x, y + 1) and y < 8
+// DOWN
+rel promoted_rook_line_empty(x, y, x, y - 1, DOWN) = promoted_rook(x, y) and y > 0 and empty(x, y - 1)
+rel promoted_rook_line_empty(x, y, x, y2, DOWN) = promoted_rook_line_empty(x, y, x, y1, DOWN) and y1 > 0 and empty(x, y1 - 1) and y2 == y1 - 1
+rel promoted_rook_line_enemies(x, y, x, y2, DOWN) = promoted_rook_line_empty(x, y, x, y1, DOWN) and y1 > 0 and enemies(x, y1 - 1) and y2 == y1 - 1
+rel promoted_rook_line_adjacent(x, y, x, y - 1, DOWN) = promoted_rook(x, y) and enemies(x, y - 1) and y > 0
+// RIGHT
+rel promoted_rook_line_empty(x, y, x + 1, y, RIGHT) = promoted_rook(x, y) and x < 8 and empty(x + 1, y)
+rel promoted_rook_line_empty(x, y, x2, y, RIGHT) = promoted_rook_line_empty(x, y, x1, y, RIGHT) and x1 < 8 and empty(x1 + 1, y) and x2 == x1 + 1
+rel promoted_rook_line_enemies(x, y, x2, y, RIGHT) = promoted_rook_line_empty(x, y, x1, y, RIGHT) and x1 < 8 and enemies(x1 + 1, y) and x2 == x1 + 1
+rel promoted_rook_line_adjacent(x, y, x + 1, y, RIGHT) = promoted_rook(x, y) and enemies(x + 1, y) and x < 8
+// LEFT
+rel promoted_rook_line_empty(x, y, x - 1, y, LEFT) = promoted_rook(x, y) and x > 0 and empty(x - 1, y)
+rel promoted_rook_line_empty(x, y, x2, y, LEFT) = promoted_rook_line_empty(x, y, x1, y, LEFT) and x1 > 0 and empty(x1 - 1, y) and x2 == x1 - 1
+rel promoted_rook_line_enemies(x, y, x2, y, LEFT) = promoted_rook_line_empty(x, y, x1, y, LEFT) and x1 > 0 and enemies(x1 - 1, y) and x2 == x1 - 1
+rel promoted_rook_line_adjacent(x, y, x - 1, y, LEFT) = promoted_rook(x, y) and enemies(x - 1, y) and x > 0
+
+rel promoted_rook_moves(x1, y1, x2, y2) = promoted_rook_line_empty(x1, y1, x2, y2, UP) or promoted_rook_line_enemies(x1, y1, x2, y2, UP) or promoted_rook_line_adjacent(x1, y1, x2, y2, UP)
+rel promoted_rook_moves(x1, y1, x2, y2) = promoted_rook_line_empty(x1, y1, x2, y2, DOWN) or promoted_rook_line_enemies(x1, y1, x2, y2, DOWN) or promoted_rook_line_adjacent(x1, y1, x2, y2, DOWN)
+rel promoted_rook_moves(x1, y1, x2, y2) = promoted_rook_line_empty(x1, y1, x2, y2, RIGHT) or promoted_rook_line_enemies(x1, y1, x2, y2, RIGHT) or promoted_rook_line_adjacent(x1, y1, x2, y2, RIGHT)
+rel promoted_rook_moves(x1, y1, x2, y2) = promoted_rook_line_empty(x1, y1, x2, y2, LEFT) or promoted_rook_line_enemies(x1, y1, x2, y2, LEFT) or promoted_rook_line_adjacent(x1, y1, x2, y2, LEFT)
+rel promoted_rook_moves(x, y, x + 1, y + 1) = promoted_rook(x, y) and (empty(x + 1, y + 1) or enemies(x + 1, y + 1))
+rel promoted_rook_moves(x, y, x - 1, y + 1) = promoted_rook(x, y) and (empty(x - 1, y + 1) or enemies(x - 1, y + 1))
+rel promoted_rook_moves(x, y, x + 1, y - 1) = promoted_rook(x, y) and (empty(x + 1, y - 1) or enemies(x + 1, y - 1))
+rel promoted_rook_moves(x, y, x - 1, y - 1) = promoted_rook(x, y) and (empty(x - 1, y - 1) or enemies(x - 1, y - 1))
+
+// Bishop
+// UP-RIGHT
+rel bishop_diag_empty(x, y, x + 1, y + 1, RIGHT, UP) = bishop(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1)
+rel bishop_diag_empty(x, y, x2, y2, RIGHT, UP) = bishop_diag_empty(x, y, x1, y1, RIGHT, UP) and x1 < 8 and y1 < 8 and empty(x1 + 1, y1 + 1) and x2 == x1 + 1 and y2 == y1 + 1
+rel bishop_diag_enemies(x, y, x2, y2, RIGHT, UP) = bishop_diag_empty(x, y, x1, y1, RIGHT, UP) and x1 < 8 and y1 < 8 and enemies(x1 + 1, y1 + 1) and x2 == x1 + 1 and y2 == y1 + 1
+rel bishop_diag_adjacent(x, y, x + 1, y + 1, RIGHT, UP) = bishop(x, y) and enemies(x + 1, y + 1) and x < 8 and y < 8
+
+// // DOWN-RIGHT
+rel bishop_diag_empty(x, y, x + 1, y - 1, RIGHT, DOWN) = bishop(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1)
+rel bishop_diag_empty(x, y, x2, y2, RIGHT, DOWN) = bishop_diag_empty(x, y, x1, y1, RIGHT, DOWN) and x1 < 8 and y1 > 0 and empty(x1 + 1, y1 - 1) and x2 == x1 + 1 and y2 == y1 - 1
+rel bishop_diag_enemies(x, y, x2, y2, RIGHT, DOWN) = bishop_diag_empty(x, y, x1, y1, RIGHT, DOWN) and x1 < 8 and y1 > 0 and enemies(x1 + 1, y1 - 1) and x2 == x1 + 1 and y2 == y1 - 1
+rel bishop_diag_adjacent(x, y, x + 1, y - 1, RIGHT, UP) = bishop(x, y) and enemies(x + 1, y - 1) and x < 8 and y > 0
+// // DOWN-LEFT
+rel bishop_diag_empty(x, y, x - 1, y - 1, LEFT, DOWN) = bishop(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1)
+rel bishop_diag_empty(x, y, x2, y2, LEFT, DOWN) = bishop_diag_empty(x, y, x1, y1, LEFT, DOWN) and x1 > 0 and y1 > 0 and empty(x1 - 1, y1 - 1) and x2 == x1 - 1 and y2 == y1 - 1
+rel bishop_diag_enemies(x, y, x2, y2, RIGHT, DOWN) = bishop_diag_empty(x, y, x1, y1, RIGHT, DOWN) and x1 > 0 and y1 > 0 and enemies(x1 - 1, y1 - 1) and x2 == x1 - 1 and y2 == y1 - 1
+rel bishop_diag_adjacent(x, y, x - 1, y - 1, LEFT, UP) = bishop(x, y) and enemies(x - 1, y - 1) and x > 0 and y > 0
+// // UP-LEFT
+rel bishop_diag_empty(x, y, x - 1, y + 1, LEFT, UP) = bishop(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1)
+rel bishop_diag_empty(x, y, x2, y2, LEFT, UP) = bishop_diag_empty(x, y, x1, y1, LEFT, UP) and x1 > 0 and y1 < 8 and empty(x1 - 1, y1 + 1) and x2 == x1 - 1 and y2 == y1 + 1
+rel bishop_diag_enemies(x, y, x2, y2, LEFT, UP) = bishop_diag_empty(x, y, x1, y1, LEFT, UP) and x1 > 0 and y1 < 8 and enemies(x1 - 1, y1 + 1) and x2 == x1 - 1 and y2 == y1 + 1
+rel bishop_diag_adjacent(x, y, x - 1, y + 1, LEFT, UP) = bishop(x, y) and enemies(x - 1, y + 1) and x > 0 and y < 8
+
+rel bishop_moves(x1, y1, x2, y2) = bishop_diag_empty(x1, y1, x2, y2, RIGHT, UP) or bishop_diag_enemies(x1, y1, x2, y2, RIGHT, UP) or bishop_diag_adjacent(x1, y1, x2, y2, RIGHT, UP)
+rel bishop_moves(x1, y1, x2, y2) = bishop_diag_empty(x1, y1, x2, y2, RIGHT, DOWN) or bishop_diag_enemies(x1, y1, x2, y2, RIGHT, DOWN) or bishop_diag_adjacent(x1, y1, x2, y2, RIGHT, DOWN)
+rel bishop_moves(x1, y1, x2, y2) = bishop_diag_empty(x1, y1, x2, y2, LEFT, UP) or bishop_diag_enemies(x1, y1, x2, y2, LEFT, UP) or bishop_diag_adjacent(x1, y1, x2, y2, LEFT, UP)
+rel bishop_moves(x1, y1, x2, y2) = bishop_diag_empty(x1, y1, x2, y2, LEFT, DOWN) or bishop_diag_enemies(x1, y1, x2, y2, LEFT, DOWN) or bishop_diag_adjacent(x1, y1, x2, y2, LEFT, DOWN)
+query bishop_moves
+
+// Promoted Bishop
+// UP-RIGHT
+rel promoted_bishop_diag_empty(x, y, x + 1, y + 1, RIGHT, UP) = promoted_bishop(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1)
+rel promoted_bishop_diag_empty(x, y, x + 1, y + 1, RIGHT, UP) = promoted_bishop(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1)
+rel promoted_bishop_diag_empty(x, y, x2, y2, RIGHT, UP) = promoted_bishop_diag_empty(x, y, x1, y1, RIGHT, UP) and x1 < 8 and y1 < 8 and empty(x1 + 1, y1 + 1) and x2 == x1 + 1 and y2 == y1 + 1
+rel promoted_bishop_diag_enemies(x, y, x2, y2, RIGHT, UP) = promoted_bishop_diag_empty(x, y, x1, y1, RIGHT, UP) and x1 < 8 and y1 < 8 and enemies(x1 + 1, y1 + 1) and x2 == x1 + 1 and y2 == y1 + 1
+rel promoted_bishop_diag_adjacent(x, y, x + 1, y + 1, RIGHT, UP) = promoted_bishop(x, y) and enemies(x + 1, y + 1) and x < 8 and y < 8
+
+// // DOWN-RIGHT
+rel promoted_bishop_diag_empty(x, y, x + 1, y - 1, RIGHT, DOWN) = promoted_bishop(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1)
+rel promoted_bishop_diag_empty(x, y, x2, y2, RIGHT, DOWN) = promoted_bishop_diag_empty(x, y, x1, y1, RIGHT, DOWN) and x1 < 8 and y1 > 0 and empty(x1 + 1, y1 - 1) and x2 == x1 + 1 and y2 == y1 - 1
+rel promoted_bishop_diag_enemies(x, y, x2, y2, RIGHT, DOWN) = promoted_bishop_diag_empty(x, y, x1, y1, RIGHT, DOWN) and x1 < 8 and y1 > 0 and enemies(x1 + 1, y1 - 1) and x2 == x1 + 1 and y2 == y1 - 1
+rel promoted_bishop_diag_adjacent(x, y, x + 1, y - 1, RIGHT, UP) = promoted_bishop(x, y) and enemies(x + 1, y - 1) and x < 8 and y > 0
+// // DOWN-LEFT
+rel promoted_bishop_diag_empty(x, y, x - 1, y - 1, LEFT, DOWN) = promoted_bishop(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1)
+rel promoted_bishop_diag_empty(x, y, x2, y2, LEFT, DOWN) = promoted_bishop_diag_empty(x, y, x1, y1, LEFT, DOWN) and x1 > 0 and y1 > 0 and empty(x1 - 1, y1 - 1) and x2 == x1 - 1 and y2 == y1 - 1
+rel promoted_bishop_diag_enemies(x, y, x2, y2, RIGHT, DOWN) = promoted_bishop_diag_empty(x, y, x1, y1, RIGHT, DOWN) and x1 > 0 and y1 > 0 and enemies(x1 - 1, y1 - 1) and x2 == x1 - 1 and y2 == y1 - 1
+rel promoted_bishop_diag_adjacent(x, y, x - 1, y - 1, LEFT, UP) = promoted_bishop(x, y) and enemies(x - 1, y - 1) and x > 0 and y > 0
+// // UP-LEFT
+rel promoted_bishop_diag_empty(x, y, x - 1, y + 1, LEFT, UP) = promoted_bishop(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1)
+rel promoted_bishop_diag_empty(x, y, x2, y2, LEFT, UP) = promoted_bishop_diag_empty(x, y, x1, y1, LEFT, UP) and x1 > 0 and y1 < 8 and empty(x1 - 1, y1 + 1) and x2 == x1 - 1 and y2 == y1 + 1
+rel promoted_bishop_diag_enemies(x, y, x2, y2, LEFT, UP) = promoted_bishop_diag_empty(x, y, x1, y1, LEFT, UP) and x1 > 0 and y1 < 8 and enemies(x1 - 1, y1 + 1) and x2 == x1 - 1 and y2 == y1 + 1
+rel promoted_bishop_diag_adjacent(x, y, x - 1, y + 1, LEFT, UP) = promoted_bishop(x, y) and enemies(x - 1, y + 1) and x > 0 and y < 8
+
+rel promoted_bishop_moves(x1, y1, x2, y2) = promoted_bishop_diag_empty(x1, y1, x2, y2, RIGHT, UP) or promoted_bishop_diag_enemies(x1, y1, x2, y2, RIGHT, UP) or promoted_bishop_diag_adjacent(x1, y1, x2, y2, RIGHT, UP)
+rel promoted_bishop_moves(x1, y1, x2, y2) = promoted_bishop_diag_empty(x1, y1, x2, y2, RIGHT, DOWN) or promoted_bishop_diag_enemies(x1, y1, x2, y2, RIGHT, DOWN) or promoted_bishop_diag_adjacent(x1, y1, x2, y2, RIGHT, DOWN)
+rel promoted_bishop_moves(x1, y1, x2, y2) = promoted_bishop_diag_empty(x1, y1, x2, y2, LEFT, UP) or promoted_bishop_diag_enemies(x1, y1, x2, y2, LEFT, UP) or promoted_bishop_diag_adjacent(x1, y1, x2, y2, LEFT, UP)
+rel promoted_bishop_moves(x1, y1, x2, y2) = promoted_bishop_diag_empty(x1, y1, x2, y2, LEFT, DOWN) or promoted_bishop_diag_enemies(x1, y1, x2, y2, LEFT, DOWN) or promoted_bishop_diag_adjacent(x1, y1, x2, y2, LEFT, DOWN)
+rel promoted_bishop_moves(x, y, x, y + 1) = promoted_bishop(x, y) and (empty(x, y + 1) or enemies(x, y + 1))
+rel promoted_bishop_moves(x, y, x, y - 1) = promoted_bishop(x, y) and (empty(x, y - 1) or enemies(x, y - 1))
+rel promoted_bishop_moves(x, y, x + 1, y) = promoted_bishop(x, y) and (empty(x + 1, y) or enemies(x + 1, y))
+rel promoted_bishop_moves(x, y, x - 1, y) = promoted_bishop(x, y) and (empty(x - 1, y) or enemies(x - 1, y))
+
+query promoted_bishop_moves
+
+
+// Knight
+rel knight_moves(x, y, x - 1, y + 2) = knight(x, y) and x < 8 and y < 8 and (empty(x - 1, y + 2) or enemies(x - 1, y + 2))
+rel knight_moves(x, y, x + 1, y + 2) = knight(x, y) and x < 8 and y < 8 and (empty(x + 1, y + 2) or enemies(x + 1, y + 2))
+
+// Enemy_king
+rel enemy_king_moves(x, y, x - 1, y + 1) = enemy_king(x, y) and x > 0 and y < 8 and empty(x - 1, y + 1) and not check()// Up-left
+rel enemy_king_moves(x, y, x, y + 1) = enemy_king(x, y) and y < 8 and empty(x, y + 1) and not check() // Up
+rel enemy_king_moves(x, y, x + 1, y + 1) = enemy_king(x, y) and x < 8 and y < 8 and empty(x + 1, y + 1) and not check() // Up-right
+rel enemy_king_moves(x, y, x - 1, y) = enemy_king(x, y) and x > 0 and empty(x - 1, y) and not check() // Left
+rel enemy_king_moves(x, y, x + 1, y) = enemy_king(x, y) and x < 8 and empty(x + 1, y) and not check() // Right
+rel enemy_king_moves(x, y, x - 1, y - 1) = enemy_king(x, y) and x > 0 and y > 0 and empty(x - 1, y - 1) and not check() // Down-left
+rel enemy_king_moves(x, y, x, y - 1) = enemy_king(x, y) and y > 0 and empty(x, y - 1) and not check() // Down
+rel enemy_king_moves(x, y, x + 1, y - 1) = enemy_king(x, y) and x < 8 and y > 0 and empty(x + 1, y - 1) and not check() //Down-right
 
 
 // Checkmate logic
-rel num_enemy_king_moves(n) = n := count(x, y: enemy_king_moves(x, y))
-rel check() = enemy_king(x, y) and gold_moves(x, y)
+rel num_enemy_king_moves(n) = n := count(x, y: enemy_king_moves(x, y, _, _))
+rel check() = enemy_king(x, y) and (pawn_moves(_, _, x, y) or gold_moves(_, _, x, y) or silver_moves(_, _, x, y) or lance_moves(_, _, x, y) or rook_moves(_, _, x, y) or bishop_moves(_, _, x, y) or promoted_rook_moves(_, _, x, y) or promoted_bishop_moves(_, _, x, y) or knight_moves(_, _, x, y))
 
 rel checkmate() = check() and num_enemy_king_moves(n) and n == 0
 query checkmate
